@@ -213,6 +213,16 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip }) {
         </div>
       )}
 
+      {hovering && clip.video_url && (
+        <div className="absolute bottom-1.5 inset-x-0 flex justify-center pointer-events-none">
+          <span
+            className="font-mono text-[9px] tracking-wide text-chalk px-2 py-0.5 rounded-full bg-black/50"
+          >
+            click to vote
+          </span>
+        </div>
+      )}
+
       {isNewClip && (
         <span className="absolute top-1 left-1 font-mono text-[9px] bg-chalk text-mat px-1 rounded-sm tracking-wide">
           NEW
