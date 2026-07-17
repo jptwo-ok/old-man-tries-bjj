@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg: #12140F;
+  --color-text: #EDEAE0;
+  --color-legit: #6E8B5E;
+  --color-situational: #C29A3B;
+  --color-trash: #9C4A3D;
+  --color-line: #2A2C24;
+  --font-display: "Quicksand", sans-serif;
+  --font-body: system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.unrated-band {
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(0, 0, 0, 0.55),
+    rgba(0, 0, 0, 0.55) 6px,
+    rgba(0, 0, 0, 0.7) 6px,
+    rgba(0, 0, 0, 0.7) 12px
+  );
+}
