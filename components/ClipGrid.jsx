@@ -205,9 +205,13 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip }) {
       longPressTimer.current = null;
     }
     if (!longPressFired.current) {
-      // Short tap — start the preview instead of navigating.
+      // Short tap — toggle the preview instead of navigating.
       e.preventDefault();
-      handleEnter();
+      if (hovering) {
+        handleLeave();
+      } else {
+        handleEnter();
+      }
     }
   }
 
