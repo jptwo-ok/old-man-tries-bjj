@@ -108,14 +108,7 @@ export default function ClipGrid({ clips, voteCounts, newBadgeDays, unratedPosit
             questions/comments/host your clip
           </button>
           <div className="flex flex-col items-end gap-1">
-            
-              href="https://ko-fi.com/oldmantriesbjj"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-mono text-[11px] underline opacity-60 hover:opacity-100"
-            >
-              Tip
-            </a>
+            <a href="https://ko-fi.com/oldmantriesbjj" target="_blank" rel="noopener noreferrer" className="font-mono text-[11px] underline opacity-60 hover:opacity-100">Tip</a>
             <button
               onClick={() => setSearchOpen((o) => !o)}
               aria-label="Search techniques"
