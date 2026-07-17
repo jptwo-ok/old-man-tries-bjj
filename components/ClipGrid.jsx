@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import ContactForm from "@/components/ContactForm";
 
 function thumbUrl(clip) {
@@ -173,6 +174,9 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip }) {
   const [hovering, setHovering] = useState(false);
   const [showDots, setShowDots] = useState(false);
   const fadeTimer = useRef(null);
+  const longPressTimer = useRef(null);
+  const longPressFired = useRef(false);
+  const router = useRouter();
 
   function handleEnter() {
     setHovering(true);
@@ -187,12 +191,43 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip }) {
     if (fadeTimer.current) clearTimeout(fadeTimer.current);
   }
 
+  function handleTouchStart() {
+    longPressFired.current = false;
+    longPressTimer.current = setTimeout(() => {
+      longPressFired.current = true;
+      router.push(`/clip/${clip.id}`);
+    }, 500);
+  }
+
+  function handleTouchEnd(e) {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    if (!longPressFired.current) {
+      // Short tap — start the preview instead of navigating.
+      e.preventDefault();
+      handleEnter();
+    }
+  }
+
+  function handleTouchMove() {
+    // Finger moved (likely scrolling) — cancel the long-press, don't treat as a tap either.
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }
+
   return (
     <Link
       href={`/clip/${clip.id}`}
       className="relative aspect-square bg-line overflow-hidden group block"
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchMove={handleTouchMove}
     >
       {hovering && clip.video_url ? (
         // eslint-disable-next-line jsx-a11y/media-has-caption
