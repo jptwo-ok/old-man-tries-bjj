@@ -253,7 +253,7 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip }) {
       )}
 
       {hovering && clip.video_url && (
-        <div className="absolute bottom-1.5 inset-x-0 flex justify-center pointer-events-none">
+        <div className="hover-only absolute bottom-1.5 inset-x-0 justify-center pointer-events-none">
           <span
             className="font-mono text-[11px] font-semibold tracking-wide text-chalk px-3 py-1 rounded-full bg-black/80"
           >

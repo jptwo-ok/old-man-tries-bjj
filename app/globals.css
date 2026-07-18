@@ -28,3 +28,13 @@ body {
     rgba(0, 0, 0, 0.7) 12px
   );
 }
+
+/* Only shows on devices with a real mouse/trackpad — hidden on touch-only phones/tablets */
+.hover-only {
+  display: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .hover-only {
+    display: flex;
+  }
+}
