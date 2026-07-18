@@ -232,6 +232,8 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip }) {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onTouchMove={handleTouchMove}
+      onContextMenu={(e) => e.preventDefault()}
+      style={{ WebkitTouchCallout: "none" }}
     >
       {hovering && clip.video_url ? (
         // eslint-disable-next-line jsx-a11y/media-has-caption
