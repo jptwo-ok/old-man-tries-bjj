@@ -38,3 +38,13 @@ body {
     display: flex;
   }
 }
+
+/* Only shows on touch-primary devices — hidden on laptops/desktops with a real mouse */
+.touch-only {
+  display: none;
+}
+@media (hover: none) {
+  .touch-only {
+    display: block;
+  }
+}
