@@ -108,7 +108,7 @@ export default function ClipGrid({ clips, voteCounts, newBadgeDays, unratedPosit
               onClick={() => setContactOpen((o) => !o)}
               className="font-mono text-[11px] underline opacity-60 hover:opacity-100"
             >
-              questions/comments/host your clip
+              questions/comments
             </button>
           </div>
           <button
@@ -262,17 +262,6 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip }) {
             click to vote
           </span>
         </div>
-      )}
-
-      {thumb && !hovering && (
-        <>
-          <span className="hover-only absolute bottom-1 right-1 font-mono text-[8px] tracking-tight text-chalk opacity-60 bg-black/50 px-1.5 py-0.5 rounded pointer-events-none">
-            hover or click to play
-          </span>
-          <span className="touch-only absolute bottom-1 right-1 font-mono text-[8px] tracking-tight text-chalk opacity-60 bg-black/50 px-1.5 py-0.5 rounded pointer-events-none">
-            tap or hold to play
-          </span>
-        </>
       )}
 
       {isNewClip && (
