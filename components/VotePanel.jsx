@@ -55,7 +55,7 @@ export default function VotePanel({ clipId, initialCounts }) {
   if (!checked || myVote) return null;
 
   return (
-    <div className="absolute inset-0 flex items-center justify-center gap-8 pointer-events-none">
+    <div className="absolute inset-0 flex items-center justify-between px-[15%] pointer-events-none">
       <button
         onClick={() => castVote("UP")}
         disabled={busy}
