@@ -4,16 +4,11 @@ import { useState, useEffect } from "react";
 import { supabasePublic } from "@/lib/supabase";
 import { getVoterCookie } from "@/lib/voterCookie";
 
-const OPTIONS = [
-  { key: "LEGIT", label: "LEGIT", colorVar: "--color-legit" },
-  { key: "IFFY", label: "IFFY", colorVar: "--color-situational" },
-  { key: "SKIP_IT", label: "SKIP IT", colorVar: "--color-trash" },
-];
-
 export default function VotePanel({ clipId, initialCounts }) {
   const [counts, setCounts] = useState(initialCounts);
   const [myVote, setMyVote] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
     const cookie = getVoterCookie();
@@ -25,6 +20,7 @@ export default function VotePanel({ clipId, initialCounts }) {
       .maybeSingle()
       .then(({ data }) => {
         if (data) setMyVote(data.vote_type);
+        setChecked(true);
       });
   }, [clipId]);
 
@@ -54,35 +50,36 @@ export default function VotePanel({ clipId, initialCounts }) {
     setBusy(false);
   }
 
-  const total = counts.SKIP_IT + counts.LEGIT + counts.IFFY;
+  // Don't show the overlay until we've checked for an existing vote, and hide it
+  // entirely once a vote is cast — that's the whole point of it disappearing.
+  if (!checked || myVote) return null;
 
   return (
-    <div className="mt-6 border border-line rounded-md p-4">
-      <div className="grid grid-cols-3 gap-2">
-        {OPTIONS.map((opt) => {
-          const active = myVote === opt.key;
-          const pct = total ? Math.round((counts[opt.key] / total) * 100) : 0;
-          return (
-            <button
-              key={opt.key}
-              onClick={() => castVote(opt.key)}
-              disabled={busy}
-              className={`rounded-md py-3 font-mono text-xs tracking-wide border transition-colors ${
-                active ? "border-chalk" : "border-line opacity-80 hover:opacity-100"
-              }`}
-              style={{ background: active ? `var(${opt.colorVar})` : "transparent" }}
-            >
-              <div>{opt.label}</div>
-              <div className="opacity-70 mt-1">
-                {counts[opt.key]} {total ? `(${pct}%)` : ""}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-      <p className="text-center font-mono text-[11px] opacity-50 mt-3">
-        {total} total votes {myVote ? "· tap another option to change your vote" : ""}
-      </p>
+    <div className="absolute inset-0 flex items-center justify-center gap-8 pointer-events-none">
+      <button
+        onClick={() => castVote("UP")}
+        disabled={busy}
+        aria-label="Thumbs up"
+        className="pointer-events-auto w-16 h-16 rounded-full flex items-center justify-center transition-transform hover:scale-105"
+        style={{ background: "rgba(110, 139, 94, 0.75)" }}
+      >
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z" />
+          <path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
+        </svg>
+      </button>
+      <button
+        onClick={() => castVote("DOWN")}
+        disabled={busy}
+        aria-label="Thumbs down"
+        className="pointer-events-auto w-16 h-16 rounded-full flex items-center justify-center transition-transform hover:scale-105"
+        style={{ background: "rgba(156, 74, 61, 0.75)" }}
+      >
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z" />
+          <path d="M17 2h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3" />
+        </svg>
+      </button>
     </div>
   );
 }

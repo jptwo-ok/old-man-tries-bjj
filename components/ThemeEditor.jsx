@@ -5,9 +5,8 @@ import { useState } from "react";
 const COLOR_FIELDS = [
   ["colorBg", "Background"],
   ["colorText", "Text"],
-  ["colorLegit", "LEGIT"],
-  ["colorSituational", "IFFY"],
-  ["colorTrash", "SKIP IT"],
+  ["colorLegit", "Thumbs up"],
+  ["colorTrash", "Thumbs down"],
   ["colorLine", "Lines / borders"],
 ];
 

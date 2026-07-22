@@ -3,7 +3,7 @@ import { supabasePublic } from "@/lib/supabase";
 
 export const metadata = {
   title: "Old Man Tries BJJ",
-  description: "Vote LEGIT, IFFY, or SKIP IT on real BJJ technique clips.",
+  description: "Vote thumbs up or down on real BJJ technique clips.",
 };
 
 export const revalidate = 60; // theme/settings changes show up within a minute, no redeploy needed

@@ -16,12 +16,11 @@ function isNew(clip, newBadgeDays) {
 }
 
 const gradeColor = {
-  LEGIT: "bg-legit",
-  IFFY: "bg-situational",
-  SKIP_IT: "bg-trash",
+  UP: "bg-legit",
+  DOWN: "bg-trash",
 };
 
-const GRADE_ORDER = ["LEGIT", "IFFY", "SKIP_IT"];
+const GRADE_ORDER = ["UP", "DOWN"];
 
 const STOPWORDS = new Set([
   "a", "an", "the", "to", "of", "in", "on", "at", "for", "and", "or", "but",
@@ -30,6 +29,8 @@ const STOPWORDS = new Set([
   "over", "under", "up", "down", "out", "off", "no", "not", "so", "if",
   "when", "while", "your", "you", "i", "my", "vs", "you're",
 ]);
+
+const DOUBLE_TAP_WINDOW = 300;
 
 export default function ClipGrid({ clips, voteCounts, newBadgeDays, unratedPosition = "top", excludedWords = [] }) {
   const [search, setSearch] = useState("");
@@ -73,13 +74,13 @@ export default function ClipGrid({ clips, voteCounts, newBadgeDays, unratedPosit
     const unrated = [];
     for (const clip of searchedClips) {
       const c = voteCounts[clip.id];
-      const total = c ? c.SKIP_IT + c.LEGIT + c.IFFY : 0;
+      const total = c ? c.UP + c.DOWN : 0;
       (total === 0 ? unrated : rated).push(clip);
     }
     rated.sort((a, b) => {
       const scoreOf = (c) => {
-        const v = voteCounts[c.id] || { LEGIT: 0, IFFY: 0, SKIP_IT: 0 };
-        return v.LEGIT * 3 + v.IFFY * 1 - v.SKIP_IT * 1;
+        const v = voteCounts[c.id] || { UP: 0, DOWN: 0 };
+        return v.UP * 2 - v.DOWN * 1;
       };
       const diff = scoreOf(b) - scoreOf(a);
       return diff !== 0 ? diff : new Date(b.added_at) - new Date(a.added_at);
@@ -149,8 +150,8 @@ export default function ClipGrid({ clips, voteCounts, newBadgeDays, unratedPosit
       ) : (
       <div className="grid grid-cols-3 gap-[2px]">
         {sortedClips.map((clip) => {
-          const counts = voteCounts[clip.id] || { SKIP_IT: 0, LEGIT: 0, IFFY: 0 };
-          const total = counts.SKIP_IT + counts.LEGIT + counts.IFFY;
+          const counts = voteCounts[clip.id] || { UP: 0, DOWN: 0 };
+          const total = counts.UP + counts.DOWN;
           const unrated = total === 0;
           const thumb = thumbUrl(clip);
           return (
@@ -174,8 +175,8 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip }) {
   const [hovering, setHovering] = useState(false);
   const [showDots, setShowDots] = useState(false);
   const fadeTimer = useRef(null);
-  const longPressTimer = useRef(null);
-  const longPressFired = useRef(false);
+  const tapTimer = useRef(null);
+  const lastTapAt = useRef(0);
   const router = useRouter();
 
   function handleEnter() {
@@ -191,36 +192,41 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip }) {
     if (fadeTimer.current) clearTimeout(fadeTimer.current);
   }
 
-  function handleTouchStart() {
-    longPressFired.current = false;
-    longPressTimer.current = setTimeout(() => {
-      longPressFired.current = true;
-      router.push(`/clip/${clip.id}`);
-    }, 500);
-  }
-
   function handleTouchEnd(e) {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
+    e.preventDefault();
+    const now = Date.now();
+    const sinceLastTap = now - lastTapAt.current;
+
+    if (sinceLastTap > 0 && sinceLastTap < DOUBLE_TAP_WINDOW) {
+      // Double tap — go straight to the clip page.
+      if (tapTimer.current) {
+        clearTimeout(tapTimer.current);
+        tapTimer.current = null;
+      }
+      lastTapAt.current = 0;
+      router.push(`/clip/${clip.id}`);
+      return;
     }
-    if (!longPressFired.current) {
-      // Short tap — toggle the preview instead of navigating.
-      e.preventDefault();
+
+    // First tap of a possible pair — wait briefly to see if a second tap follows.
+    lastTapAt.current = now;
+    tapTimer.current = setTimeout(() => {
       if (hovering) {
         handleLeave();
       } else {
         handleEnter();
       }
-    }
+      lastTapAt.current = 0;
+    }, DOUBLE_TAP_WINDOW);
   }
 
   function handleTouchMove() {
-    // Finger moved (likely scrolling) — cancel the long-press, don't treat as a tap either.
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
+    // Finger moved (likely scrolling) — cancel any pending tap.
+    if (tapTimer.current) {
+      clearTimeout(tapTimer.current);
+      tapTimer.current = null;
     }
+    lastTapAt.current = 0;
   }
 
   return (
@@ -229,7 +235,6 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip }) {
       className="relative aspect-square bg-line overflow-hidden group block"
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
-      onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onTouchMove={handleTouchMove}
       onContextMenu={(e) => e.preventDefault()}
@@ -291,7 +296,7 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip }) {
 
       {!unrated && (
         <div
-          className={`absolute inset-0 flex flex-col items-center justify-center gap-1.5 transition-opacity duration-300 ${
+          className={`absolute inset-0 flex items-center justify-center gap-3 transition-opacity duration-300 ${
             showDots ? "opacity-100" : "opacity-0"
           }`}
         >

@@ -16,10 +16,10 @@ async function getCreatorStats() {
   const clipCredit = {};
   for (const c of clips || []) clipCredit[c.id] = c.source_credit || UNKNOWN_CREDIT;
 
-  const stats = {}; // credit -> { LEGIT, IFFY, SKIP_IT, total, clipIds:Set }
+  const stats = {}; // credit -> { UP, DOWN, total, clipIds:Set }
   for (const c of clips || []) {
     const credit = c.source_credit || UNKNOWN_CREDIT;
-    if (!stats[credit]) stats[credit] = { LEGIT: 0, IFFY: 0, SKIP_IT: 0, total: 0, clips: new Set() };
+    if (!stats[credit]) stats[credit] = { UP: 0, DOWN: 0, total: 0, clips: new Set() };
     stats[credit].clips.add(c.id);
   }
   for (const v of votes || []) {
@@ -35,19 +35,17 @@ async function getCreatorStats() {
       credit,
       clipCount: s.clips.size,
       totalVotes: s.total,
-      legitScore: s.total ? Math.round((s.LEGIT / s.total) * 100) : 0,
-      skipItScore: s.total ? Math.round((s.SKIP_IT / s.total) * 100) : 0,
-      LEGIT: s.LEGIT,
-      IFFY: s.IFFY,
-      SKIP_IT: s.SKIP_IT,
+      upScore: s.total ? Math.round((s.UP / s.total) * 100) : 0,
+      UP: s.UP,
+      DOWN: s.DOWN,
     }));
 
   const ranked = rows.filter((r) => r.totalVotes >= MIN_VOTES);
   const unranked = rows.filter((r) => r.totalVotes < MIN_VOTES);
   const unknownCount = stats[UNKNOWN_CREDIT]?.clips.size || 0;
 
-  const highest = [...ranked].sort((a, b) => b.legitScore - a.legitScore).slice(0, 10);
-  const lowest = [...ranked].sort((a, b) => a.legitScore - b.legitScore).slice(0, 10);
+  const highest = [...ranked].sort((a, b) => b.upScore - a.upScore).slice(0, 10);
+  const lowest = [...ranked].sort((a, b) => a.upScore - b.upScore).slice(0, 10);
 
   return { highest, lowest, unrankedCount: unranked.length, unknownCount };
 }
@@ -59,7 +57,7 @@ function CreatorRow({ row, rank }) {
       <span className="flex-1 text-sm truncate">{row.credit}</span>
       <span className="font-mono text-xs opacity-60">{row.clipCount} clips</span>
       <span className="font-mono text-xs opacity-60">{row.totalVotes} votes</span>
-      <span className="font-mono text-sm font-semibold text-legit">{row.legitScore}% legit</span>
+      <span className="font-mono text-sm font-semibold text-legit">{row.upScore}% 👍</span>
     </div>
   );
 }
@@ -75,7 +73,7 @@ export default async function CreatorsPage() {
 
       <h1 className="font-display text-xl font-semibold mt-4 mb-1">Creator ratings</h1>
       <p className="text-xs opacity-60 mb-6 font-mono">
-        Ranked by % of votes that landed LEGIT. Needs at least {MIN_VOTES} votes across a creator's clips
+        Ranked by % of votes that were thumbs up. Needs at least {MIN_VOTES} votes across a creator's clips
         to be ranked ({unrankedCount} creator{unrankedCount === 1 ? "" : "s"} below that threshold,{" "}
         {unknownCount} clip{unknownCount === 1 ? "" : "s"} not yet credited to anyone).
       </p>

@@ -35,7 +35,7 @@ export default async function HomePage() {
 
   const voteCounts = {};
   for (const v of votes) {
-    if (!voteCounts[v.clip_id]) voteCounts[v.clip_id] = { SKIP_IT: 0, LEGIT: 0, IFFY: 0 };
+    if (!voteCounts[v.clip_id]) voteCounts[v.clip_id] = { UP: 0, DOWN: 0 };
     voteCounts[v.clip_id][v.vote_type]++;
   }
 

@@ -1,6 +1,5 @@
 import { supabasePublic, supabaseAdmin } from "@/lib/supabase";
 import VotePanel from "@/components/VotePanel";
-import CommentSection from "@/components/CommentSection";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -8,21 +7,20 @@ export const dynamic = "force-dynamic";
 
 async function getClip(id) {
   const supabase = supabasePublic();
-  const [{ data: clip }, { data: votes }, { data: comments }] = await Promise.all([
+  const [{ data: clip }, { data: votes }] = await Promise.all([
     supabase.from("clips").select("*").eq("id", id).single(),
     supabase.from("votes").select("vote_type").eq("clip_id", id),
-    supabase.from("comments").select("*").eq("clip_id", id).order("created_at", { ascending: true }),
   ]);
-  return { clip, votes: votes || [], comments: comments || [] };
+  return { clip, votes: votes || [] };
 }
 
 export default async function ClipPage({ params }) {
-  const { clip, votes, comments } = await getClip(params.id);
+  const { clip, votes } = await getClip(params.id);
   if (!clip) notFound();
 
   await supabaseAdmin().from("page_views").insert({ path: `clip:${params.id}` });
 
-  const counts = { SKIP_IT: 0, LEGIT: 0, IFFY: 0 };
+  const counts = { UP: 0, DOWN: 0 };
   for (const v of votes) counts[v.vote_type]++;
 
   return (
@@ -36,7 +34,7 @@ export default async function ClipPage({ params }) {
         added {new Date(clip.added_at).toLocaleDateString()} · credit: {clip.source_credit}
       </p>
 
-      <div className="mt-4 aspect-video bg-line rounded-md overflow-hidden">
+      <div className="mt-4 relative aspect-video bg-line rounded-md overflow-hidden">
         {clip.video_url ? (
           <video
             className="w-full h-full"
@@ -51,10 +49,8 @@ export default async function ClipPage({ params }) {
             No video linked yet
           </div>
         )}
+        <VotePanel clipId={clip.id} initialCounts={counts} />
       </div>
-
-      <VotePanel clipId={clip.id} initialCounts={counts} />
-      <CommentSection clipId={clip.id} initialComments={comments} />
     </main>
   );
 }

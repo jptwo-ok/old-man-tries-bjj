@@ -28,7 +28,7 @@ create index if not exists clips_category_idx on clips (category);
 create table if not exists votes (
   id uuid primary key default gen_random_uuid(),
   clip_id uuid not null references clips(id) on delete cascade,
-  vote_type text not null check (vote_type in ('SKIP_IT', 'LEGIT', 'IFFY')),
+  vote_type text not null check (vote_type in ('UP', 'DOWN')),
   voter_cookie text not null,
   created_at timestamptz not null default now(),
   unique (clip_id, voter_cookie)
@@ -105,7 +105,7 @@ insert into site_settings (key, value) values
   ('site_copy', '{
     "name": "Old Man Tries BJJ",
     "handle": "@OldManTriesBJJ",
-    "bio": "You know how you''re supposed to learn concepts rather than techniques... here''s a thousand techniques I saved anyway over the last four years from white belt to purple belt. Vote LEGIT, IFFY, or SKIP IT.",
+    "bio": "You know how you''re supposed to learn concepts rather than techniques... here''s a thousand techniques I saved anyway over the last four years from white belt to purple belt. Vote thumbs up or thumbs down.",
     "newBadgeDays": 7,
     "unratedPosition": "top",
     "excludedSearchWords": []
