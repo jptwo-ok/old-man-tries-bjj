@@ -103,6 +103,7 @@ export default function VotePanel({ clipId, initialCounts, insetPercent = 15, si
       style={{ paddingLeft: `${insetPercent}%`, paddingRight: `${insetPercent}%` }}
     >
       <button
+        onTouchStart={(e) => e.stopPropagation()}
         onTouchEnd={(e) => handleTouchEnd(e, "UP")}
         onClick={(e) => handleClick(e, "UP")}
         disabled={busy}
@@ -118,6 +119,7 @@ export default function VotePanel({ clipId, initialCounts, insetPercent = 15, si
         </svg>
       </button>
       <button
+        onTouchStart={(e) => e.stopPropagation()}
         onTouchEnd={(e) => handleTouchEnd(e, "DOWN")}
         onClick={(e) => handleClick(e, "DOWN")}
         disabled={busy}
