@@ -301,22 +301,7 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isExpanded, setExpa
       )}
 
       {isExpanded && (
-        // Wrapper stops taps on the vote buttons from bubbling up and
-        // being treated as a tap-to-collapse on the tile itself. preventDefault
-        // on click is required (not just stopPropagation) to reliably block
-        // this Link's own navigation from firing as a side effect of the tap.
-        <div
-          className="absolute inset-0"
-          onTouchStart={(e) => e.stopPropagation()}
-          onTouchMove={(e) => e.stopPropagation()}
-          onTouchEnd={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-          }}
-        >
-          <VotePanel clipId={clip.id} initialCounts={counts} insetPercent={5} size="small" />
-        </div>
+        <VotePanel clipId={clip.id} initialCounts={counts} insetPercent={5} size="small" />
       )}
 
       {hovering && !isExpanded && clip.video_url && (
