@@ -305,7 +305,7 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isExpanded, setExpa
           onTouchEnd={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
         >
-          <VotePanel clipId={clip.id} initialCounts={counts} insetPercent={22} />
+          <VotePanel clipId={clip.id} initialCounts={counts} insetPercent={5} size="small" />
         </div>
       )}
 
