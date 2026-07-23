@@ -5,7 +5,8 @@ A Next.js site with:
 - Homepage: IG-style grid, profile header, "+N new clips added" banner
 - UNRATED overlay on any clip with zero votes; a colored dot showing the leading grade once it has votes
 - "NEW" tag on clips added within the last N days (edit N in the admin theme page)
-- Clip page: self-hosted video playback (no YouTube), LEGIT/SITUATIONAL/TRASH voting (one vote per visitor, can change their vote), open comments
+- Clip page: self-hosted video playback (no YouTube), thumbs up (+2) and thumbs down (-1) voting (one vote per visitor, can change their vote)
+- `/about`: public page with admin-editable text about you and your work
 - `/creators`: public leaderboard of content creators by highest/lowest rated
 - `/admin` panel (password-protected, just for you): bulk-import clips, add clips one at a time, tag/retag creators, hide/delete clips, edit the color palette and fonts, edit the bio/name/handle, post manual announcements
 
