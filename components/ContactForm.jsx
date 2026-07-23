@@ -40,9 +40,11 @@ export default function ContactForm({ onClose }) {
         <p className="font-mono text-xs uppercase tracking-wide opacity-70">
           Questions, comments, or want to host your clips?
         </p>
-        <button onClick={onClose} className="font-mono text-xs opacity-50 hover:opacity-100">
-          close
-        </button>
+        {onClose && (
+          <button onClick={onClose} className="font-mono text-xs opacity-50 hover:opacity-100">
+            close
+          </button>
+        )}
       </div>
       <form onSubmit={submit} className="flex flex-col gap-2">
         <div className="flex gap-2">

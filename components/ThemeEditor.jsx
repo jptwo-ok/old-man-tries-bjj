@@ -139,6 +139,25 @@ export default function ThemeEditor({ initialTheme, initialCopy }) {
         </div>
       </section>
 
+      <section>
+        <h2 className="font-mono text-xs uppercase tracking-wide opacity-60 mb-3">About page</h2>
+        <div className="space-y-2">
+          <label className="flex flex-col gap-1 text-sm">
+            About Me text
+            <textarea
+              value={copy.aboutText || ""}
+              onChange={(e) => setCopy({ ...copy, aboutText: e.target.value })}
+              rows={8}
+              placeholder="Write your About Me content here."
+              className="bg-transparent border border-line rounded-md px-3 py-2 text-sm outline-none focus:border-chalk"
+            />
+            <span className="text-xs opacity-50">
+              Shown on the /about page, above the questions/comments form.
+            </span>
+          </label>
+        </div>
+      </section>
+
       <button className="border border-line rounded-md px-5 py-2 text-sm font-mono hover:border-chalk">
         Save changes
       </button>

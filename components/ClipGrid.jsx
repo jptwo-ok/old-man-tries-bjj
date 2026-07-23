@@ -3,7 +3,6 @@
 import { useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import ContactForm from "@/components/ContactForm";
 
 function thumbUrl(clip) {
   return clip.thumbnail_url || null;
@@ -35,7 +34,6 @@ const DOUBLE_TAP_WINDOW = 300;
 export default function ClipGrid({ clips, voteCounts, newBadgeDays, unratedPosition = "top", excludedWords = [] }) {
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
-  const [contactOpen, setContactOpen] = useState(false);
 
   const excludedSet = useMemo(() => {
     const set = new Set(STOPWORDS);
@@ -105,12 +103,9 @@ export default function ClipGrid({ clips, voteCounts, newBadgeDays, unratedPosit
         <div className="flex items-center gap-3">
           <div className="flex flex-col items-end gap-1">
             <a href="https://ko-fi.com/oldmantriesbjj" target="_blank" rel="noopener noreferrer" className="font-mono text-[11px] underline opacity-60 hover:opacity-100">Tip</a>
-            <button
-              onClick={() => setContactOpen((o) => !o)}
-              className="font-mono text-[11px] underline opacity-60 hover:opacity-100"
-            >
-              questions/comments
-            </button>
+            <Link href="/about" className="font-mono text-[11px] underline opacity-60 hover:opacity-100">
+              About
+            </Link>
           </div>
           <button
             onClick={() => setSearchOpen((o) => !o)}
@@ -124,8 +119,6 @@ export default function ClipGrid({ clips, voteCounts, newBadgeDays, unratedPosit
           </button>
         </div>
       </div>
-
-      {contactOpen && <ContactForm onClose={() => setContactOpen(false)} />}
 
       {searchOpen && (
         <div className="mb-4">
@@ -198,7 +191,6 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip }) {
     const sinceLastTap = now - lastTapAt.current;
 
     if (sinceLastTap > 0 && sinceLastTap < DOUBLE_TAP_WINDOW) {
-      // Double tap — go straight to the clip page.
       if (tapTimer.current) {
         clearTimeout(tapTimer.current);
         tapTimer.current = null;
@@ -208,7 +200,6 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip }) {
       return;
     }
 
-    // First tap of a possible pair — wait briefly to see if a second tap follows.
     lastTapAt.current = now;
     tapTimer.current = setTimeout(() => {
       if (hovering) {
@@ -221,7 +212,6 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip }) {
   }
 
   function handleTouchMove() {
-    // Finger moved (likely scrolling) — cancel any pending tap.
     if (tapTimer.current) {
       clearTimeout(tapTimer.current);
       tapTimer.current = null;
