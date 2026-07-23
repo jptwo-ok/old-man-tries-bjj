@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import VotePanel from "@/components/VotePanel";
@@ -180,12 +180,22 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isExpanded, setExpa
   const [showDots, setShowDots] = useState(false);
   const fadeTimer = useRef(null);
   const router = useRouter();
+  const tileRef = useRef(null);
 
   // Mobile touch-gesture tracking.
   const longPressTimer = useRef(null);
   const longPressFired = useRef(false);
   const movedRef = useRef(false);
   const touchStartPos = useRef({ x: 0, y: 0 });
+
+  // The moment this tile expands, scroll it to the vertical center of the
+  // screen — otherwise a tile near the bottom expands partly off-screen
+  // and needs a manual scroll to see the whole thing.
+  useEffect(() => {
+    if (isExpanded && tileRef.current) {
+      tileRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [isExpanded]);
 
   function handleEnter() {
     setHovering(true);
@@ -251,6 +261,7 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isExpanded, setExpa
 
   return (
     <Link
+      ref={tileRef}
       href={`/clip/${clip.id}`}
       className={`relative bg-line overflow-hidden group block aspect-square ${
         isExpanded ? "col-span-4" : ""
