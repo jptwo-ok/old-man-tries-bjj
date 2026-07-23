@@ -252,8 +252,8 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isExpanded, setExpa
   return (
     <Link
       href={`/clip/${clip.id}`}
-      className={`relative bg-line overflow-hidden group block ${
-        isExpanded ? "col-span-4 aspect-video" : "aspect-square"
+      className={`relative bg-line overflow-hidden group block aspect-square ${
+        isExpanded ? "col-span-4" : ""
       }`}
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
@@ -264,14 +264,16 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isExpanded, setExpa
       style={{ WebkitTouchCallout: "none" }}
     >
       {isExpanded && clip.video_url ? (
-        // Mobile expanded view — plays with sound, no mute.
+        // Mobile expanded view — plays with sound, no mute. object-contain
+        // (not object-cover) so vertical clips letterbox with black bars
+        // left/right at this square size, instead of cropping or stretching.
         // eslint-disable-next-line jsx-a11y/media-has-caption
         <video
           src={clip.video_url}
           autoPlay
           playsInline
           loop
-          className="w-full h-full object-cover"
+          className="w-full h-full object-contain"
         />
       ) : hovering && clip.video_url ? (
         // Desktop hover preview — stays muted, unchanged from before.
@@ -303,7 +305,7 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isExpanded, setExpa
           onTouchEnd={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
         >
-          <VotePanel clipId={clip.id} initialCounts={counts} />
+          <VotePanel clipId={clip.id} initialCounts={counts} insetPercent={22} />
         </div>
       )}
 

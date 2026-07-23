@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { supabasePublic } from "@/lib/supabase";
 import { getVoterCookie } from "@/lib/voterCookie";
 
-export default function VotePanel({ clipId, initialCounts }) {
+export default function VotePanel({ clipId, initialCounts, insetPercent = 15 }) {
   const [counts, setCounts] = useState(initialCounts);
   const [myVote, setMyVote] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -55,7 +55,10 @@ export default function VotePanel({ clipId, initialCounts }) {
   if (!checked || myVote) return null;
 
   return (
-    <div className="absolute inset-0 flex items-center justify-between px-[15%] pointer-events-none">
+    <div
+      className="absolute inset-0 flex items-center justify-between pointer-events-none"
+      style={{ paddingLeft: `${insetPercent}%`, paddingRight: `${insetPercent}%` }}
+    >
       <button
         onClick={() => castVote("UP")}
         disabled={busy}
