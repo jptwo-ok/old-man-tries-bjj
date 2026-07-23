@@ -50,6 +50,23 @@ export default function VotePanel({ clipId, initialCounts, insetPercent = 15, si
     setBusy(false);
   }
 
+  // Handles the vote directly on touch release, on the button itself — not
+  // relying on a synthetic click being generated afterward, and not relying
+  // on stopPropagation on some ancestor wrapper to block a parent Link's
+  // navigation. preventDefault here stops that synthetic click (and any
+  // resulting navigation) from ever being created in the first place.
+  function handleTouchEnd(e, voteType) {
+    e.preventDefault();
+    e.stopPropagation();
+    castVote(voteType);
+  }
+
+  function handleClick(e, voteType) {
+    e.preventDefault();
+    e.stopPropagation();
+    castVote(voteType);
+  }
+
   // Don't show the overlay until we've checked for an existing vote, and hide it
   // entirely once a vote is cast — that's the whole point of it disappearing.
   if (!checked || myVote) return null;
@@ -63,7 +80,8 @@ export default function VotePanel({ clipId, initialCounts, insetPercent = 15, si
       style={{ paddingLeft: `${insetPercent}%`, paddingRight: `${insetPercent}%` }}
     >
       <button
-        onClick={() => castVote("UP")}
+        onTouchEnd={(e) => handleTouchEnd(e, "UP")}
+        onClick={(e) => handleClick(e, "UP")}
         disabled={busy}
         aria-label="Thumbs up"
         className={`pointer-events-auto ${buttonClass} rounded-full flex items-center justify-center transition-transform hover:scale-105`}
@@ -75,7 +93,8 @@ export default function VotePanel({ clipId, initialCounts, insetPercent = 15, si
         </svg>
       </button>
       <button
-        onClick={() => castVote("DOWN")}
+        onTouchEnd={(e) => handleTouchEnd(e, "DOWN")}
+        onClick={(e) => handleClick(e, "DOWN")}
         disabled={busy}
         aria-label="Thumbs down"
         className={`pointer-events-auto ${buttonClass} rounded-full flex items-center justify-center transition-transform hover:scale-105`}
