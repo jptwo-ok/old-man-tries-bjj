@@ -103,15 +103,6 @@ export default function ThemeEditor({ initialTheme, initialCopy }) {
             />
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            &quot;NEW&quot; badge window (days)
-            <input
-              type="number"
-              value={copy.newBadgeDays ?? 7}
-              onChange={(e) => setCopy({ ...copy, newBadgeDays: Number(e.target.value) })}
-              className="bg-transparent border border-line rounded-md px-3 py-2 text-sm outline-none focus:border-chalk w-24"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
             Unrated clips show at
             <select
               value={copy.unratedPosition || "top"}
@@ -134,25 +125,6 @@ export default function ThemeEditor({ initialTheme, initialCopy }) {
             <span className="text-xs opacity-50">
               Common filler words (a, the, to, etc.) are already hidden automatically — use this for
               anything else that's cluttering the search box.
-            </span>
-          </label>
-        </div>
-      </section>
-
-      <section>
-        <h2 className="font-mono text-xs uppercase tracking-wide opacity-60 mb-3">About page</h2>
-        <div className="space-y-2">
-          <label className="flex flex-col gap-1 text-sm">
-            About Me text
-            <textarea
-              value={copy.aboutText || ""}
-              onChange={(e) => setCopy({ ...copy, aboutText: e.target.value })}
-              rows={8}
-              placeholder="Write your About Me content here."
-              className="bg-transparent border border-line rounded-md px-3 py-2 text-sm outline-none focus:border-chalk"
-            />
-            <span className="text-xs opacity-50">
-              Shown on the /about page, above the questions/comments form.
             </span>
           </label>
         </div>

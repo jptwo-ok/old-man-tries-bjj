@@ -39,8 +39,6 @@ export default async function HomePage() {
     voteCounts[v.clip_id][v.vote_type]++;
   }
 
-  const newBadgeDays = copy.newBadgeDays ?? 7;
-
   return (
     <main className="max-w-4xl mx-auto px-3 pt-8 pb-16">
       <header className="flex flex-col items-start text-left gap-2 mb-6">
@@ -59,7 +57,6 @@ export default async function HomePage() {
       <ClipGrid
         clips={clips}
         voteCounts={voteCounts}
-        newBadgeDays={newBadgeDays}
         unratedPosition={copy.unratedPosition || "top"}
         excludedWords={copy.excludedSearchWords || []}
       />

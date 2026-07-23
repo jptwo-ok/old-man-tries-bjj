@@ -1,18 +1,12 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import VotePanel from "@/components/VotePanel";
+import ContactForm from "@/components/ContactForm";
 
 function thumbUrl(clip) {
   return clip.thumbnail_url || null;
-}
-
-function isNew(clip, newBadgeDays) {
-  const added = new Date(clip.added_at).getTime();
-  const cutoff = Date.now() - newBadgeDays * 24 * 60 * 60 * 1000;
-  return added >= cutoff;
 }
 
 const gradeColor = {
@@ -30,18 +24,12 @@ const STOPWORDS = new Set([
   "when", "while", "your", "you", "i", "my", "vs", "you're",
 ]);
 
-// How long (ms) a finger has to stay down before it counts as a long-press
-// (navigate to the clip's own page) instead of a tap (expand in place).
-const LONG_PRESS_MS = 450;
-// If the finger moves more than this many px before release, treat it as a
-// scroll, not a tap or a hold — cancels both behaviors.
-const MOVE_CANCEL_PX = 10;
+const DOUBLE_TAP_WINDOW = 300;
 
-export default function ClipGrid({ clips, voteCounts, newBadgeDays, unratedPosition = "top", excludedWords = [] }) {
+export default function ClipGrid({ clips, voteCounts, unratedPosition = "top", excludedWords = [] }) {
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
-  // Only one tile can be expanded (mobile tap-to-expand) at a time.
-  const [expandedId, setExpandedId] = useState(null);
+  const [contactOpen, setContactOpen] = useState(false);
 
   const excludedSet = useMemo(() => {
     const set = new Set(STOPWORDS);
@@ -111,9 +99,12 @@ export default function ClipGrid({ clips, voteCounts, newBadgeDays, unratedPosit
         <div className="flex items-center gap-3">
           <div className="flex flex-col items-end gap-1">
             <a href="https://ko-fi.com/oldmantriesbjj" target="_blank" rel="noopener noreferrer" className="font-mono text-[11px] underline opacity-60 hover:opacity-100">Tip</a>
-            <Link href="/about" className="font-mono text-[11px] underline opacity-60 hover:opacity-100">
-              About
-            </Link>
+            <button
+              onClick={() => setContactOpen((o) => !o)}
+              className="font-mono text-[11px] underline opacity-60 hover:opacity-100"
+            >
+              questions/comments
+            </button>
           </div>
           <button
             onClick={() => setSearchOpen((o) => !o)}
@@ -127,6 +118,8 @@ export default function ClipGrid({ clips, voteCounts, newBadgeDays, unratedPosit
           </button>
         </div>
       </div>
+
+      {contactOpen && <ContactForm onClose={() => setContactOpen(false)} />}
 
       {searchOpen && (
         <div className="mb-4">
@@ -149,7 +142,7 @@ export default function ClipGrid({ clips, voteCounts, newBadgeDays, unratedPosit
       {sortedClips.length === 0 ? (
         <p className="text-center opacity-60 text-sm py-16 font-mono">No clips match "{search}".</p>
       ) : (
-      <div className={`grid gap-[2px] ${expandedId ? "grid-cols-4" : "grid-cols-3"}`}>
+      <div className="grid grid-cols-3 gap-[2px]">
         {sortedClips.map((clip) => {
           const counts = voteCounts[clip.id] || { UP: 0, DOWN: 0 };
           const total = counts.UP + counts.DOWN;
@@ -162,9 +155,7 @@ export default function ClipGrid({ clips, voteCounts, newBadgeDays, unratedPosit
               counts={counts}
               unrated={unrated}
               thumb={thumb}
-              isNewClip={isNew(clip, newBadgeDays)}
-              isExpanded={expandedId === clip.id}
-              setExpandedId={setExpandedId}
+              isNewClip={unrated}
             />
           );
         })}
@@ -174,28 +165,13 @@ export default function ClipGrid({ clips, voteCounts, newBadgeDays, unratedPosit
   );
 }
 
-function ClipTile({ clip, counts, unrated, thumb, isNewClip, isExpanded, setExpandedId }) {
-  // Desktop-only hover preview — unrelated to mobile tap/hold logic below.
+function ClipTile({ clip, counts, unrated, thumb, isNewClip }) {
   const [hovering, setHovering] = useState(false);
   const [showDots, setShowDots] = useState(false);
   const fadeTimer = useRef(null);
+  const tapTimer = useRef(null);
+  const lastTapAt = useRef(0);
   const router = useRouter();
-  const tileRef = useRef(null);
-
-  // Mobile touch-gesture tracking.
-  const longPressTimer = useRef(null);
-  const longPressFired = useRef(false);
-  const movedRef = useRef(false);
-  const touchStartPos = useRef({ x: 0, y: 0 });
-
-  // The moment this tile expands, scroll it to the vertical center of the
-  // screen — otherwise a tile near the bottom expands partly off-screen
-  // and needs a manual scroll to see the whole thing.
-  useEffect(() => {
-    if (isExpanded && tileRef.current) {
-      tileRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  }, [isExpanded]);
 
   function handleEnter() {
     setHovering(true);
@@ -210,84 +186,55 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isExpanded, setExpa
     if (fadeTimer.current) clearTimeout(fadeTimer.current);
   }
 
-  function handleTouchStart(e) {
-    movedRef.current = false;
-    longPressFired.current = false;
-    const t = e.touches[0];
-    touchStartPos.current = { x: t.clientX, y: t.clientY };
-
-    longPressTimer.current = setTimeout(() => {
-      longPressFired.current = true;
-      router.push(`/clip/${clip.id}`);
-    }, LONG_PRESS_MS);
-  }
-
-  function handleTouchMove(e) {
-    const t = e.touches[0];
-    const dx = Math.abs(t.clientX - touchStartPos.current.x);
-    const dy = Math.abs(t.clientY - touchStartPos.current.y);
-    if (dx > MOVE_CANCEL_PX || dy > MOVE_CANCEL_PX) {
-      movedRef.current = true;
-      if (longPressTimer.current) {
-        clearTimeout(longPressTimer.current);
-        longPressTimer.current = null;
-      }
-    }
-  }
-
   function handleTouchEnd(e) {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-
-    if (longPressFired.current) {
-      // Already navigated to the clip page — stop the browser's follow-up
-      // click from also firing (which would otherwise re-trigger Link nav).
-      e.preventDefault();
-      return;
-    }
-
-    if (movedRef.current) {
-      // Finger moved — this was a scroll, not a tap. Do nothing.
-      return;
-    }
-
-    // Genuine tap: block the default Link click-navigation and toggle
-    // this tile's expanded state instead.
     e.preventDefault();
-    setExpandedId(isExpanded ? null : clip.id);
+    const now = Date.now();
+    const sinceLastTap = now - lastTapAt.current;
+
+    if (sinceLastTap > 0 && sinceLastTap < DOUBLE_TAP_WINDOW) {
+      // Double tap — go straight to the clip page.
+      if (tapTimer.current) {
+        clearTimeout(tapTimer.current);
+        tapTimer.current = null;
+      }
+      lastTapAt.current = 0;
+      router.push(`/clip/${clip.id}`);
+      return;
+    }
+
+    // First tap of a possible pair — wait briefly to see if a second tap follows.
+    lastTapAt.current = now;
+    tapTimer.current = setTimeout(() => {
+      if (hovering) {
+        handleLeave();
+      } else {
+        handleEnter();
+      }
+      lastTapAt.current = 0;
+    }, DOUBLE_TAP_WINDOW);
+  }
+
+  function handleTouchMove() {
+    // Finger moved (likely scrolling) — cancel any pending tap.
+    if (tapTimer.current) {
+      clearTimeout(tapTimer.current);
+      tapTimer.current = null;
+    }
+    lastTapAt.current = 0;
   }
 
   return (
     <Link
-      ref={tileRef}
       href={`/clip/${clip.id}`}
-      className={`relative bg-line overflow-hidden group block aspect-square ${
-        isExpanded ? "col-span-4" : ""
-      }`}
+      className="relative aspect-square bg-line overflow-hidden group block"
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onTouchMove={handleTouchMove}
       onContextMenu={(e) => e.preventDefault()}
       style={{ WebkitTouchCallout: "none" }}
     >
-      {isExpanded && clip.video_url ? (
-        // Mobile expanded view — plays with sound, no mute. object-contain
-        // (not object-cover) so vertical clips letterbox with black bars
-        // left/right at this square size, instead of cropping or stretching.
-        // eslint-disable-next-line jsx-a11y/media-has-caption
-        <video
-          src={clip.video_url}
-          autoPlay
-          playsInline
-          loop
-          className="w-full h-full object-contain"
-        />
-      ) : hovering && clip.video_url ? (
-        // Desktop hover preview — stays muted, unchanged from before.
+      {hovering && clip.video_url ? (
         // eslint-disable-next-line jsx-a11y/media-has-caption
         <video
           src={clip.video_url}
@@ -306,26 +253,7 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isExpanded, setExpa
         </div>
       )}
 
-      {isExpanded && (
-        // Wrapper stops taps on the vote buttons from bubbling up and
-        // being treated as a tap-to-collapse on the tile itself. preventDefault
-        // on click is required (not just stopPropagation) to reliably block
-        // this Link's own navigation from firing as a side effect of the tap.
-        <div
-          className="absolute inset-0"
-          onTouchStart={(e) => e.stopPropagation()}
-          onTouchMove={(e) => e.stopPropagation()}
-          onTouchEnd={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-          }}
-        >
-          <VotePanel clipId={clip.id} initialCounts={counts} insetPercent={5} size="small" />
-        </div>
-      )}
-
-      {hovering && !isExpanded && clip.video_url && (
+      {hovering && clip.video_url && (
         <div className="hover-only absolute bottom-1.5 inset-x-0 justify-center pointer-events-none">
           <span
             className="font-mono text-[11px] font-semibold tracking-wide text-chalk px-3 py-1 rounded-full bg-black/80"
@@ -335,13 +263,13 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isExpanded, setExpa
         </div>
       )}
 
-      {isNewClip && !isExpanded && (
+      {isNewClip && (
         <span className="absolute top-1 left-1 font-mono text-[9px] bg-chalk text-mat px-1 rounded-sm tracking-wide">
           NEW
         </span>
       )}
 
-      {thumb && !hovering && !isExpanded && (
+      {thumb && !hovering && (
         <div className="absolute inset-0 flex items-center justify-center px-2 pointer-events-none">
           <p
             className="text-xs leading-tight text-chalk text-center font-medium"
@@ -358,11 +286,9 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isExpanded, setExpa
         </div>
       )}
 
-      {!isExpanded && (
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-colors pointer-events-none" />
-      )}
+      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-colors" />
 
-      {!unrated && !isExpanded && (
+      {!unrated && (
         <div
           className={`absolute inset-0 flex items-center justify-center gap-3 transition-opacity duration-300 ${
             showDots ? "opacity-100" : "opacity-0"
