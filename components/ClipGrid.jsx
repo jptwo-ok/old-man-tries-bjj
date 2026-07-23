@@ -289,3 +289,93 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isExpanded, setExpa
       ) : hovering && clip.video_url ? (
         // Desktop hover preview — stays muted, unchanged from before.
         // eslint-disable-next-line jsx-a11y/media-has-caption
+        <video
+          src={clip.video_url}
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="w-full h-full object-cover"
+        />
+      ) : thumb ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={thumb} alt={clip.title} className="w-full h-full object-cover" />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center text-[10px] font-mono opacity-50 px-2 text-center">
+          {clip.title}
+        </div>
+      )}
+
+      {isExpanded && (
+        // Wrapper stops taps on the vote buttons from bubbling up and
+        // being treated as a tap-to-collapse on the tile itself. preventDefault
+        // on click is required (not just stopPropagation) to reliably block
+        // this Link's own navigation from firing as a side effect of the tap.
+        <div
+          className="absolute inset-0"
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+        >
+          <VotePanel clipId={clip.id} initialCounts={counts} insetPercent={5} size="small" />
+        </div>
+      )}
+
+      {hovering && !isExpanded && clip.video_url && (
+        <div className="hover-only absolute bottom-1.5 inset-x-0 justify-center pointer-events-none">
+          <span
+            className="font-mono text-[11px] font-semibold tracking-wide text-chalk px-3 py-1 rounded-full bg-black/80"
+          >
+            click to vote
+          </span>
+        </div>
+      )}
+
+      {isNewClip && !isExpanded && (
+        <span className="absolute top-1 left-1 font-mono text-[9px] bg-chalk text-mat px-1 rounded-sm tracking-wide">
+          NEW
+        </span>
+      )}
+
+      {thumb && !hovering && !isExpanded && (
+        <div className="absolute inset-0 flex items-center justify-center px-2 pointer-events-none">
+          <p
+            className="text-xs leading-tight text-chalk text-center font-medium"
+            style={{
+              display: "-webkit-box",
+              WebkitLineClamp: 3,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+              textShadow: "0 1px 3px rgba(0,0,0,0.9), 0 1px 10px rgba(0,0,0,0.7)",
+            }}
+          >
+            {clip.title}
+          </p>
+        </div>
+      )}
+
+      {!isExpanded && (
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-colors pointer-events-none" />
+      )}
+
+      {!unrated && !isExpanded && (
+        <div
+          className={`absolute inset-0 flex items-center justify-center gap-3 transition-opacity duration-300 ${
+            showDots ? "opacity-100" : "opacity-0"
+          }`}
+        >
+          {GRADE_ORDER.map((grade) => (
+            <div key={grade} className="flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full ${gradeColor[grade]}`} />
+              <span className="font-mono text-[10px] text-chalk">{counts[grade]}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </Link>
+  );
+}
