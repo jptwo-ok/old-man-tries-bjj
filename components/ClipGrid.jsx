@@ -253,6 +253,11 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isExpanded, setExpa
     setExpandedId(isExpanded ? null : clip.id);
   }
 
+  function handleClick(e) {
+    e.preventDefault();
+    setExpandedId(isExpanded ? null : clip.id);
+  }
+
   return (
     <Link
       ref={tileRef}
@@ -262,6 +267,7 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isExpanded, setExpa
       }`}
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
+      onClick={handleClick}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -269,8 +275,8 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isExpanded, setExpa
       style={{ WebkitTouchCallout: "none" }}
     >
       {isExpanded && clip.video_url ? (
-        // Mobile expanded view — plays with sound, no mute. object-contain
-        // (not object-cover) so vertical clips letterbox with black bars
+        // Expanded view — plays with sound on desktop click-expand or mobile tap-expand.
+        // object-contain (not object-cover) so vertical clips letterbox with black bars
         // left/right at this square size, instead of cropping or stretching.
         // eslint-disable-next-line jsx-a11y/media-has-caption
         <video
@@ -301,7 +307,27 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isExpanded, setExpa
       )}
 
       {isExpanded && (
-        <VotePanel clipId={clip.id} initialCounts={counts} insetPercent={5} size="small" />
+        <>
+          <VotePanel clipId={clip.id} initialCounts={counts} insetPercent={5} size="small" />
+          <button
+            type="button"
+            onTouchStart={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              router.push(`/clip/${clip.id}`);
+            }}
+            aria-label="Open clip page"
+            className="absolute top-3 right-3 z-10 pointer-events-auto rounded-full bg-black/70 p-2 text-chalk hover:bg-black/90"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 11V5h6" />
+              <path d="M5 5l6 6" />
+              <path d="M19 13v6h-6" />
+              <path d="M19 19l-6-6" />
+            </svg>
+          </button>
+        </>
       )}
 
       {hovering && !isExpanded && clip.video_url && (
