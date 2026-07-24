@@ -9,12 +9,18 @@ async function getClips() {
   return data || [];
 }
 
+async function getCopySettings() {
+  const supabase = supabaseAdmin();
+  const { data } = await supabase.from("site_settings").select("value").eq("key", "site_copy").single();
+  return data?.value || {};
+}
+
 export default async function AdminClipsPage() {
-  const clips = await getClips();
+  const [clips, copy] = await Promise.all([getClips(), getCopySettings()]);
   return (
     <div>
       <h1 className="font-display text-lg font-semibold mb-6">Clips</h1>
-      <ClipsManager initialClips={clips} />
+      <ClipsManager initialClips={clips} initialCopy={copy} />
     </div>
   );
 }

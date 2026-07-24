@@ -58,6 +58,7 @@ export default async function HomePage() {
         clips={clips}
         voteCounts={voteCounts}
         unratedPosition={copy.unratedPosition || "top"}
+        featuredClipId={copy.featuredClipId || null}
         excludedWords={copy.excludedSearchWords || []}
       />
     </main>

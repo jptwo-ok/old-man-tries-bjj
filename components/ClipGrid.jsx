@@ -18,6 +18,27 @@ const gradeColor = {
 
 const GRADE_ORDER = ["UP", "DOWN"];
 
+function sortClipsForDisplay(clipsToSort, voteCounts, unratedPosition) {
+  const rated = [];
+  const unrated = [];
+  for (const clip of clipsToSort) {
+    const c = voteCounts[clip.id];
+    const total = c ? c.UP + c.DOWN : 0;
+    (total === 0 ? unrated : rated).push(clip);
+  }
+  rated.sort((a, b) => {
+    const scoreOf = (c) => {
+      const v = voteCounts[c.id] || { UP: 0, DOWN: 0 };
+      return v.UP * 2 - v.DOWN * 1;
+    };
+    const diff = scoreOf(b) - scoreOf(a);
+    return diff !== 0 ? diff : new Date(b.added_at) - new Date(a.added_at);
+  });
+  unrated.sort((a, b) => new Date(b.added_at) - new Date(a.added_at));
+
+  return unratedPosition === "bottom" ? [...rated, ...unrated] : [...unrated, ...rated];
+}
+
 const STOPWORDS = new Set([
   "a", "an", "the", "to", "of", "in", "on", "at", "for", "and", "or", "but",
   "with", "from", "by", "is", "are", "was", "were", "be", "been", "this",
@@ -33,7 +54,7 @@ const LONG_PRESS_MS = 450;
 // scroll, not a tap or a hold — cancels both behaviors.
 const MOVE_CANCEL_PX = 10;
 
-export default function ClipGrid({ clips, voteCounts, unratedPosition = "top", excludedWords = [] }) {
+export default function ClipGrid({ clips, voteCounts, unratedPosition = "top", featuredClipId = null, excludedWords = [] }) {
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   // Only one tile can be expanded (mobile tap-to-expand) at a time.
@@ -72,25 +93,16 @@ export default function ClipGrid({ clips, voteCounts, unratedPosition = "top", e
   }, [clips, search]);
 
   const sortedClips = useMemo(() => {
-    const rated = [];
-    const unrated = [];
-    for (const clip of searchedClips) {
-      const c = voteCounts[clip.id];
-      const total = c ? c.UP + c.DOWN : 0;
-      (total === 0 ? unrated : rated).push(clip);
-    }
-    rated.sort((a, b) => {
-      const scoreOf = (c) => {
-        const v = voteCounts[c.id] || { UP: 0, DOWN: 0 };
-        return v.UP * 2 - v.DOWN * 1;
-      };
-      const diff = scoreOf(b) - scoreOf(a);
-      return diff !== 0 ? diff : new Date(b.added_at) - new Date(a.added_at);
-    });
-    unrated.sort((a, b) => new Date(b.added_at) - new Date(a.added_at));
+    const hasActiveSearch = search.trim() !== "";
+    const sorted = sortClipsForDisplay(searchedClips, voteCounts, unratedPosition);
 
-    return unratedPosition === "bottom" ? [...rated, ...unrated] : [...unrated, ...rated];
-  }, [searchedClips, voteCounts, unratedPosition]);
+    if (hasActiveSearch || !featuredClipId) return sorted;
+
+    const featuredClip = searchedClips.find((clip) => clip.id === featuredClipId);
+    if (!featuredClip) return sorted;
+
+    return [featuredClip, ...sorted.filter((clip) => clip.id !== featuredClip.id)];
+  }, [featuredClipId, searchedClips, search, voteCounts, unratedPosition]);
 
   if (clips.length === 0) {
     return (
@@ -159,6 +171,7 @@ export default function ClipGrid({ clips, voteCounts, unratedPosition = "top", e
               unrated={unrated}
               thumb={thumb}
               isNewClip={unrated}
+              isFeatured={featuredClipId === clip.id && !search.trim()}
               isExpanded={expandedId === clip.id}
               setExpandedId={setExpandedId}
             />
@@ -170,7 +183,7 @@ export default function ClipGrid({ clips, voteCounts, unratedPosition = "top", e
   );
 }
 
-function ClipTile({ clip, counts, unrated, thumb, isNewClip, isExpanded, setExpandedId }) {
+function ClipTile({ clip, counts, unrated, thumb, isNewClip, isFeatured, isExpanded, setExpandedId }) {
   // Desktop-only hover preview — unrelated to mobile tap/hold logic below.
   const [hovering, setHovering] = useState(false);
   const [showDots, setShowDots] = useState(false);
@@ -309,7 +322,7 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isExpanded, setExpa
       href={`/clip/${clip.id}`}
       className={`relative bg-line overflow-hidden group block aspect-square ${
         isExpanded ? "col-span-4" : ""
-      }`}
+      } ${isFeatured ? "ring-1 ring-legit/50" : ""}`}
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
       onClick={handleClick}
@@ -317,7 +330,12 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isExpanded, setExpa
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       onContextMenu={(e) => e.preventDefault()}
-      style={{ WebkitTouchCallout: "none" }}
+      style={{
+        WebkitTouchCallout: "none",
+        ...(isFeatured && !isExpanded
+          ? { boxShadow: "0 0 0 1px rgba(74, 222, 128, 0.35), 0 0 16px rgba(74, 222, 128, 0.14)" }
+          : {}),
+      }}
     >
       {isExpanded && clip.video_url ? (
         // Expanded view — plays with sound on desktop click-expand or mobile tap-expand.
@@ -383,6 +401,12 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isExpanded, setExpa
             click to vote
           </span>
         </div>
+      )}
+
+      {isFeatured && !isExpanded && (
+        <span className="absolute top-2 right-2 z-20 font-mono text-[9px] uppercase tracking-wide bg-legit/90 text-mat px-2 py-1 rounded-full shadow-sm">
+          Featured Clip
+        </span>
       )}
 
       {isNewClip && !isExpanded && (
