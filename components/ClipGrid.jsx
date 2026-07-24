@@ -4,6 +4,8 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import VotePanel from "@/components/VotePanel";
+import { supabasePublic } from "@/lib/supabase";
+import { getVoterCookie } from "@/lib/voterCookie";
 
 function thumbUrl(clip) {
   return clip.thumbnail_url || null;
@@ -182,6 +184,10 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isExpanded, setExpa
   const movedRef = useRef(false);
   const touchStartPos = useRef({ x: 0, y: 0 });
 
+  // Preview timing for hover / tap-preview analytics
+  const previewStartRef = useRef(null);
+  const previewPlayingRef = useRef(false);
+
   // The moment this tile expands, scroll it to the vertical center of the
   // screen — otherwise a tile near the bottom expands partly off-screen
   // and needs a manual scroll to see the whole thing.
@@ -190,6 +196,17 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isExpanded, setExpa
       tileRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   }, [isExpanded]);
+
+  // Start/stop preview timing for hover or expanded previews.
+  useEffect(() => {
+    const shouldPreview = clip.video_url && (isExpanded || hovering);
+    if (shouldPreview) startPreview();
+    else stopPreview();
+    return () => {
+      if (previewPlayingRef.current) stopPreview();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isExpanded, hovering, clip.video_url]);
 
   function handleEnter() {
     setHovering(true);
@@ -256,6 +273,34 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isExpanded, setExpa
   function handleClick(e) {
     e.preventDefault();
     setExpandedId(isExpanded ? null : clip.id);
+  }
+
+  async function recordHoverIfNeeded(durationMs) {
+    try {
+      if (durationMs < 1000) return;
+      const cookie = getVoterCookie();
+      const supabase = supabasePublic();
+      await supabase.from("hover_events").insert([
+        { clip_id: clip.id, voter_cookie: cookie, duration_ms: Math.round(durationMs), created_at: new Date().toISOString() },
+      ]);
+    } catch (err) {
+      console.error("Failed to record hover event", err);
+    }
+  }
+
+  function startPreview() {
+    if (previewPlayingRef.current) return;
+    previewPlayingRef.current = true;
+    previewStartRef.current = Date.now();
+  }
+
+  function stopPreview() {
+    if (!previewPlayingRef.current) return;
+    previewPlayingRef.current = false;
+    const start = previewStartRef.current || 0;
+    const duration = Date.now() - start;
+    previewStartRef.current = null;
+    recordHoverIfNeeded(duration);
   }
 
   return (

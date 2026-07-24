@@ -2,14 +2,17 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 async function getStats() {
   const supabase = supabaseAdmin();
-  const [{ count: clipCount }, { count: voteCount }, { count: commentCount }, { count: totalViews }, { count: homeViews }, { data: clipViewRows }, { data: clips }] =
+  const [{ count: clipCount }, { count: voteCount }, { count: commentCount }, { count: totalViews }, { count: homeViews }, { count: hoverCount }, { data: hoverRows }, { data: clipViewRows }, { data: voteRows }, { data: clips }] =
     await Promise.all([
       supabase.from("clips").select("*", { count: "exact", head: true }),
       supabase.from("votes").select("*", { count: "exact", head: true }),
       supabase.from("comments").select("*", { count: "exact", head: true }),
       supabase.from("page_views").select("*", { count: "exact", head: true }),
       supabase.from("page_views").select("*", { count: "exact", head: true }).eq("path", "home"),
+      supabase.from("hover_events").select("*", { count: "exact", head: true }),
+      supabase.from("hover_events").select("voter_cookie, clip_id, duration_ms"),
       supabase.from("page_views").select("path").like("path", "clip:%"),
+      supabase.from("votes").select("voter_cookie"),
       supabase.from("clips").select("id, title"),
     ]);
 
@@ -24,6 +27,30 @@ async function getStats() {
     .slice(0, 5)
     .map(([id, count]) => ({ title: titleById[id] || "(deleted clip)", count }));
 
+  // Hover engagement stats
+  const totalHoverCount = hoverCount || 0;
+  let avgHoverDurationSec = 0;
+  let avgDistinctClipsPerVisitor = 0;
+  let percentHoverVisitorsWhoVoted = 0;
+  if (hoverRows && hoverRows.length > 0) {
+    const totalMs = hoverRows.reduce((s, r) => s + (r.duration_ms || 0), 0);
+    avgHoverDurationSec = Math.round((totalMs / hoverRows.length) / 10) / 100; // round to 2 decimals
+
+    const byVisitor = {};
+    for (const r of hoverRows) {
+      const c = r.voter_cookie || "(anon)";
+      byVisitor[c] = byVisitor[c] || new Set();
+      if (r.clip_id) byVisitor[c].add(r.clip_id);
+    }
+    const counts = Object.values(byVisitor).map((s) => s.size);
+    avgDistinctClipsPerVisitor = counts.length ? Math.round((counts.reduce((a, b) => a + b, 0) / counts.length) * 100) / 100 : 0;
+
+    const hoverCookies = new Set(Object.keys(byVisitor));
+    const voteCookieSet = new Set((voteRows || []).map((v) => v.voter_cookie).filter(Boolean));
+    const hoveredThenVoted = Array.from(hoverCookies).filter((c) => voteCookieSet.has(c)).length;
+    percentHoverVisitorsWhoVoted = hoverCookies.size ? Math.round((hoveredThenVoted / hoverCookies.size) * 100) : 0;
+  }
+
   return {
     clipCount: clipCount || 0,
     voteCount: voteCount || 0,
@@ -31,11 +58,17 @@ async function getStats() {
     totalViews: totalViews || 0,
     homeViews: homeViews || 0,
     topClips,
+    hoverStats: {
+      totalHoverCount,
+      avgHoverDurationSec,
+      avgDistinctClipsPerVisitor,
+      percentHoverVisitorsWhoVoted,
+    },
   };
 }
 
 export default async function AdminDashboard() {
-  const { clipCount, voteCount, commentCount, totalViews, homeViews, topClips } = await getStats();
+  const { clipCount, voteCount, commentCount, totalViews, homeViews, topClips, hoverStats } = await getStats();
 
   return (
     <div>
@@ -52,6 +85,27 @@ export default async function AdminDashboard() {
         <div className="border border-line rounded-md p-4 text-center">
           <div className="text-2xl">{commentCount}</div>
           <div className="opacity-60 text-xs mt-1">comments</div>
+        </div>
+      </div>
+      <div className="mt-4">
+        <h2 className="font-mono text-xs uppercase tracking-wide opacity-60 mb-2">Hover Engagement</h2>
+        <div className="grid grid-cols-4 gap-3 font-mono text-sm mb-6">
+          <div className="border border-line rounded-md p-4 text-center">
+            <div className="text-2xl">{hoverStats.totalHoverCount}</div>
+            <div className="opacity-60 text-xs mt-1">hover events</div>
+          </div>
+          <div className="border border-line rounded-md p-4 text-center">
+            <div className="text-2xl">{hoverStats.avgHoverDurationSec}</div>
+            <div className="opacity-60 text-xs mt-1">avg duration (s)</div>
+          </div>
+          <div className="border border-line rounded-md p-4 text-center">
+            <div className="text-2xl">{hoverStats.avgDistinctClipsPerVisitor}</div>
+            <div className="opacity-60 text-xs mt-1">avg distinct clips/visitor</div>
+          </div>
+          <div className="border border-line rounded-md p-4 text-center">
+            <div className="text-2xl">{hoverStats.percentHoverVisitorsWhoVoted}%</div>
+            <div className="opacity-60 text-xs mt-1">hover visitors who voted</div>
+          </div>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3 font-mono text-sm mb-6">
