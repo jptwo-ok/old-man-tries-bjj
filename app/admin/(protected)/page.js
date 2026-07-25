@@ -24,7 +24,7 @@ async function getStats() {
   }
   const topClips = Object.entries(viewCounts)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
+    .slice(0, 20)
     .map(([id, count]) => ({ title: titleById[id] || "(deleted clip)", count }));
 
   // Hover engagement stats
