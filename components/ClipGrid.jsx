@@ -120,7 +120,7 @@ export default function ClipGrid({ clips, voteCounts, unratedPosition = "top", f
           <div className="flex flex-col items-end gap-1">
             <a href="https://ko-fi.com/oldmantriesbjj" target="_blank" rel="noopener noreferrer" className="font-mono text-[11px] underline opacity-60 hover:opacity-100">Tip</a>
             <Link href="/about" className="font-mono text-[11px] underline opacity-60 hover:opacity-100">
-              About
+              Contact
             </Link>
           </div>
           <button
