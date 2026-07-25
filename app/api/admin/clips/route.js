@@ -1,17 +1,8 @@
 import { NextResponse } from "next/server";
-import { DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { isAdmin } from "@/lib/adminAuth";
 import { supabaseAdmin } from "@/lib/supabase";
-
-const r2Client = new S3Client({
-  region: "auto",
-  endpoint: process.env.R2_ENDPOINT,
-  requestChecksumCalculation: "WHEN_REQUIRED",
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
-  },
-});
+import { r2Client } from "@/lib/r2Client";
 
 function unauthorized() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
