@@ -415,7 +415,7 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isFeatured, isExpan
         </div>
       )}
 
-      {isNewClip && !isExpanded && (
+      {(isNewClip || isFeatured) && !isExpanded && (
         <span className="absolute top-1 left-1 font-mono text-[9px] bg-chalk text-mat px-1 rounded-sm tracking-wide">
           NEW
         </span>
