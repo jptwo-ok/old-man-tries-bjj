@@ -454,6 +454,7 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isFeatured, isExpan
           ))}
         </div>
       )}
-    </Link>
+      </Link>
+    </>
   );
 }
