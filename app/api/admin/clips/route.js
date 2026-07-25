@@ -32,6 +32,16 @@ export async function PATCH(req) {
   const supabase = supabaseAdmin();
 
   const { id, ...updates } = body;
+  const allowedFields = ["title", "video_url", "thumbnail_url", "source_credit", "hidden"];
+  const invalidFields = Object.keys(updates).filter((key) => !allowedFields.includes(key));
+
+  if (invalidFields.length > 0) {
+    return NextResponse.json(
+      { error: `Invalid field(s): ${invalidFields.join(", ")}` },
+      { status: 400 }
+    );
+  }
+
   const { error } = await supabase.from("clips").update(updates).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ ok: true });

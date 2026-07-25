@@ -303,6 +303,10 @@ export default function ClipsManager({ initialClips, initialCopy = {} }) {
     });
     if (res.ok) {
       setClips((cs) => cs.map((c) => (c.id === clip.id ? { ...c, [field]: value } : c)));
+    } else {
+      const data = await res.json().catch(() => ({}));
+      console.error("Failed to save clip field", field, data.error || res.statusText);
+      alert(`Save failed — try again (${data.error || res.statusText})`);
     }
   }
 
@@ -316,6 +320,10 @@ export default function ClipsManager({ initialClips, initialCopy = {} }) {
       setClips((cs) =>
         cs.map((c) => (c.id === clip.id ? { ...c, source_credit: value || "Unknown — help us ID this" } : c))
       );
+    } else {
+      const data = await res.json().catch(() => ({}));
+      console.error("Failed to save clip credit", data.error || res.statusText);
+      alert(`Save failed — try again (${data.error || res.statusText})`);
     }
   }
 
