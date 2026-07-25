@@ -321,15 +321,17 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isFeatured, isExpan
       <style jsx global>{`
         @keyframes featuredGlow {
           0%, 100% {
-            box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.24), 0 0 14px rgba(74, 222, 128, 0.14);
+            box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.5), 0 0 20px 4px rgba(74, 222, 128, 0.35), 0 0 45px 12px rgba(74, 222, 128, 0.2);
           }
           50% {
-            box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.42), 0 0 20px rgba(74, 222, 128, 0.24);
+            box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.9), 0 0 40px 12px rgba(74, 222, 128, 0.65), 0 0 80px 24px rgba(74, 222, 128, 0.4);
           }
         }
 
         .featured-clip-glow {
-          animation: featuredGlow 2.6s ease-in-out infinite;
+          animation: featuredGlow 2.2s ease-in-out infinite;
+          position: relative;
+          z-index: 1;
         }
       `}</style>
       <Link
