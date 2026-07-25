@@ -26,7 +26,7 @@ export async function POST(req) {
   });
 
   try {
-    const uploadUrl = await getSignedUrl(r2Client, command, { expiresIn: 60 });
+    const uploadUrl = await getSignedUrl(r2Client, command, { expiresIn: 600 });
     return NextResponse.json({
       uploadUrl,
       publicUrl: `${publicBaseUrl}${encodeURIComponent(key)}`,
