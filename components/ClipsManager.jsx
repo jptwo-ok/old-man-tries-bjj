@@ -56,6 +56,7 @@ export default function ClipsManager({ initialClips, initialCopy = {} }) {
       return;
     }
 
+    setUploadingFile(true);
     setStatus("Creating clip...");
     setUploadStatus("Uploading video...");
 
@@ -66,12 +67,14 @@ export default function ClipsManager({ initialClips, initialCopy = {} }) {
 
       let thumbnailUrl = null;
       try {
+        setUploadStatus("Uploading thumbnail...");
         const blob = await captureThumbnail(selectedFile);
         const thumbFile = new File([blob], `thumb-${Date.now()}.jpg`, { type: "image/jpeg" });
         thumbnailUrl = await uploadToPresignedR2(thumbFile, thumbFile.name, thumbFile.type);
         setSingle((s) => ({ ...s, thumbnail_url: thumbnailUrl }));
       } catch (error) {
         console.error("Thumbnail capture/upload failed", error);
+        setUploadStatus("Video uploaded — thumbnail failed, you can add one manually below.");
       }
 
       const payload = {
@@ -103,6 +106,8 @@ export default function ClipsManager({ initialClips, initialCopy = {} }) {
       console.error("Single clip submission failed", error);
       setUploadStatus(`Upload failed: ${error.message || "Something went wrong"}`);
       setStatus(`Error: ${error.message || "Something went wrong"}`);
+    } finally {
+      setUploadingFile(false);
     }
   }
 
@@ -205,11 +210,7 @@ export default function ClipsManager({ initialClips, initialCopy = {} }) {
       try {
         const blob = await captureThumbnail(file);
         const thumbFile = new File([blob], `thumb-${Date.now()}-${file.name}.jpg`, { type: "image/jpeg" });
-        const thumbForm = new FormData();
-        thumbForm.append("file", thumbFile);
-        const thumbRes = await fetch("/api/admin/clips/upload", { method: "POST", body: thumbForm });
-        const thumbData = await thumbRes.json();
-        if (thumbRes.ok) thumbnail_url = thumbData.url;
+        thumbnail_url = await uploadToPresignedR2(thumbFile, thumbFile.name, thumbFile.type);
       } catch {
         // no thumbnail — clip still gets created, just shows as a text tile for now
       }
@@ -326,8 +327,12 @@ export default function ClipsManager({ initialClips, initialCopy = {} }) {
             placeholder="Source credit (optional)"
             className="bg-transparent border border-line rounded-md px-3 py-2 text-sm outline-none focus:border-chalk col-span-2"
           />
-          <button className="self-start border border-line rounded-md px-4 py-2 text-sm font-mono hover:border-chalk col-span-2">
-            Add clip
+          <button
+            type="submit"
+            disabled={uploadingFile || !selectedFile}
+            className="self-start border border-line rounded-md px-4 py-2 text-sm font-mono hover:border-chalk disabled:opacity-40 col-span-2"
+          >
+            {uploadingFile ? "Uploading..." : "Add clip"}
           </button>
         </form>
       </section>
