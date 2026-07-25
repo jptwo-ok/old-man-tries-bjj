@@ -339,9 +339,21 @@ export default function ClipsManager({ initialClips, initialCopy = {} }) {
   }
 
   async function deleteClip(clip) {
-    if (!confirm(`Delete "${clip.title}"? This removes its votes and comments too.`)) return;
+    if (!confirm(`Delete "${clip.title}"? This removes its votes too.`)) return;
     const res = await fetch(`/api/admin/clips?id=${clip.id}`, { method: "DELETE" });
-    if (res.ok) setClips((cs) => cs.filter((c) => c.id !== clip.id));
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      setStatus(`Error: ${data.error || "Could not delete clip"}`);
+      return;
+    }
+
+    setClips((cs) => cs.filter((c) => c.id !== clip.id));
+    if (data.r2Deleted) {
+      setStatus("Clip and files deleted.");
+    } else {
+      setStatus("Clip removed, but file cleanup on storage may have failed — check manually.");
+    }
   }
 
   async function featureClip(clip) {
