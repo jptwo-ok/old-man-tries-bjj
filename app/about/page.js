@@ -11,9 +11,6 @@ export default async function AboutPage() {
       </Link>
 
       <div className="border-t border-line pt-8">
-        <h2 className="font-mono text-xs uppercase tracking-wide opacity-60 mb-4">
-          Questions / Comments
-        </h2>
         <ContactForm />
       </div>
     </main>
