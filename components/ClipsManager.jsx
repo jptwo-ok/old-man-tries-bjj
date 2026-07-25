@@ -10,6 +10,7 @@ export default function ClipsManager({ initialClips, initialCopy = {} }) {
   const [bulkNote, setBulkNote] = useState("");
   const [status, setStatus] = useState("");
   const [single, setSingle] = useState({ title: "", video_url: "", thumbnail_url: "", source_credit: "" });
+  const [selectedFile, setSelectedFile] = useState(null);
   const [search, setSearch] = useState("");
   const [uploadStatus, setUploadStatus] = useState("");
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -45,30 +46,63 @@ export default function ClipsManager({ initialClips, initialCopy = {} }) {
 
   async function submitSingle(e) {
     e.preventDefault();
-    if (uploadingFile) {
-      setStatus("Please wait for the uploaded file to finish processing.");
+    if (!selectedFile) {
+      setStatus("Please choose a video file first.");
       return;
     }
 
-    const payload = {
-      ...single,
-      title: single.title.trim() || "Untitled clip",
-      video_url: single.video_url || null,
-      thumbnail_url: single.thumbnail_url || null,
-    };
+    if (uploadingFile) {
+      setStatus("Please wait for the file upload to finish.");
+      return;
+    }
 
-    const res = await fetch("/api/admin/clips", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json();
-    if (res.ok) {
-      setClips((c) => [data.clip, ...c]);
-      setSingle({ title: "", video_url: "", thumbnail_url: "", source_credit: "" });
-      setStatus("");
-    } else {
-      setStatus(`Error: ${data.error}`);
+    setStatus("Creating clip...");
+    setUploadStatus("Uploading video...");
+
+    try {
+      const videoUrl = await uploadToPresignedR2(selectedFile, selectedFile.name, selectedFile.type || "video/mp4");
+      setSingle((s) => ({ ...s, video_url: videoUrl }));
+      setUploadStatus("Video uploaded — grabbing a thumbnail frame...");
+
+      let thumbnailUrl = null;
+      try {
+        const blob = await captureThumbnail(selectedFile);
+        const thumbFile = new File([blob], `thumb-${Date.now()}.jpg`, { type: "image/jpeg" });
+        thumbnailUrl = await uploadToPresignedR2(thumbFile, thumbFile.name, thumbFile.type);
+        setSingle((s) => ({ ...s, thumbnail_url: thumbnailUrl }));
+      } catch (error) {
+        console.error("Thumbnail capture/upload failed", error);
+      }
+
+      const payload = {
+        ...single,
+        title: single.title.trim() || "Untitled clip",
+        video_url: videoUrl,
+        thumbnail_url: thumbnailUrl || null,
+        source_credit: single.source_credit || "Unknown — help us ID this",
+      };
+
+      const res = await fetch("/api/admin/clips", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        setClips((c) => [data.clip, ...c]);
+        setSingle({ title: "", video_url: "", thumbnail_url: "", source_credit: "" });
+        setSelectedFile(null);
+        setUploadStatus("Clip created successfully.");
+        setStatus("");
+      } else {
+        setUploadStatus(`Upload failed: ${data.error || "Could not create clip"}`);
+        setStatus(`Error: ${data.error || "Could not create clip"}`);
+      }
+    } catch (error) {
+      console.error("Single clip submission failed", error);
+      setUploadStatus(`Upload failed: ${error.message || "Something went wrong"}`);
+      setStatus(`Error: ${error.message || "Something went wrong"}`);
     }
   }
 
@@ -146,31 +180,11 @@ export default function ClipsManager({ initialClips, initialCopy = {} }) {
     return presignData.publicUrl;
   }
 
-  async function uploadFile(file) {
-    setUploadingFile(true);
-    setUploadStatus("Uploading video...");
-
-    try {
-      const videoUrl = await uploadToPresignedR2(file, file.name, file.type || "video/mp4");
-      setSingle((s) => ({ ...s, video_url: videoUrl }));
-      setUploadStatus("Video uploaded — grabbing a thumbnail frame...");
-
-      try {
-        const blob = await captureThumbnail(file);
-        const thumbFile = new File([blob], `thumb-${Date.now()}.jpg`, { type: "image/jpeg" });
-        const thumbnailUrl = await uploadToPresignedR2(thumbFile, thumbFile.name, thumbFile.type);
-        setSingle((s) => ({ ...s, thumbnail_url: thumbnailUrl }));
-        setUploadStatus("Video and thumbnail uploaded.");
-      } catch (error) {
-        console.error("Thumbnail capture/upload failed", error);
-        setUploadStatus("Video uploaded — thumbnail failed, you can add one manually below.");
-      }
-    } catch (error) {
-      console.error("Video upload failed", error);
-      setUploadStatus(`Upload failed: ${error.message}`);
-    } finally {
-      setUploadingFile(false);
-    }
+  async function prepareSelectedFile(file) {
+    setSelectedFile(file);
+    setUploadStatus("File selected — ready to add clip.");
+    setStatus("");
+    setUploadingFile(false);
   }
 
   async function runBatch() {
@@ -300,7 +314,7 @@ export default function ClipsManager({ initialClips, initialCopy = {} }) {
                 if (!file) return;
                 const guess = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]+/g, " ").trim();
                 setSingle((s) => ({ ...s, title: s.title || guess }));
-                uploadFile(file);
+                prepareSelectedFile(file);
               }}
               className="text-xs"
             />
