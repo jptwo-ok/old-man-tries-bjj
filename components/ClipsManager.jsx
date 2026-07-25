@@ -12,6 +12,7 @@ export default function ClipsManager({ initialClips, initialCopy = {} }) {
   const [single, setSingle] = useState({ title: "", video_url: "", thumbnail_url: "", source_credit: "" });
   const [search, setSearch] = useState("");
   const [uploadStatus, setUploadStatus] = useState("");
+  const [uploadingFile, setUploadingFile] = useState(false);
   const [cdnBaseUrl, setCdnBaseUrl] = useState("");
   const [batchFiles, setBatchFiles] = useState([]);
   const [batchProgress, setBatchProgress] = useState({ done: 0, total: 0, failed: [] });
@@ -44,45 +45,85 @@ export default function ClipsManager({ initialClips, initialCopy = {} }) {
 
   async function submitSingle(e) {
     e.preventDefault();
+    if (uploadingFile) {
+      setStatus("Please wait for the uploaded file to finish processing.");
+      return;
+    }
+
+    const payload = {
+      ...single,
+      title: single.title.trim() || "Untitled clip",
+      video_url: single.video_url || null,
+      thumbnail_url: single.thumbnail_url || null,
+    };
+
     const res = await fetch("/api/admin/clips", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...single, title: single.title.trim() || "Untitled clip" }),
+      body: JSON.stringify(payload),
     });
     const data = await res.json();
     if (res.ok) {
       setClips((c) => [data.clip, ...c]);
       setSingle({ title: "", video_url: "", thumbnail_url: "", source_credit: "" });
+      setStatus("");
+    } else {
+      setStatus(`Error: ${data.error}`);
     }
   }
 
   function captureThumbnail(file) {
     return new Promise((resolve, reject) => {
       const video = document.createElement("video");
+      const objectUrl = URL.createObjectURL(file);
       video.preload = "metadata";
       video.muted = true;
       video.playsInline = true;
-      video.src = URL.createObjectURL(file);
 
-      video.addEventListener("loadedmetadata", () => {
-        video.currentTime = Math.min(1, (video.duration || 2) / 2);
-      });
-      video.addEventListener("seeked", () => {
-        const canvas = document.createElement("canvas");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob(
-          (blob) => {
-            URL.revokeObjectURL(video.src);
-            blob ? resolve(blob) : reject(new Error("Could not capture frame"));
-          },
-          "image/jpeg",
-          0.82
-        );
-      });
-      video.addEventListener("error", () => reject(new Error("Video failed to load")));
+      const cleanup = () => {
+        URL.revokeObjectURL(objectUrl);
+      };
+
+      const onLoadedMetadata = () => {
+        try {
+          const seekTime = Math.min(1, (video.duration || 2) / 2);
+          video.currentTime = Number.isFinite(seekTime) ? seekTime : 0;
+        } catch (err) {
+          cleanup();
+          reject(err);
+        }
+      };
+
+      const onSeeked = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = video.videoWidth || 640;
+          canvas.height = video.videoHeight || 360;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob(
+            (blob) => {
+              cleanup();
+              blob ? resolve(blob) : reject(new Error("Could not capture frame"));
+            },
+            "image/jpeg",
+            0.82
+          );
+        } catch (err) {
+          cleanup();
+          reject(err);
+        }
+      };
+
+      const onError = () => {
+        cleanup();
+        reject(new Error("Video failed to load"));
+      };
+
+      video.addEventListener("loadedmetadata", onLoadedMetadata, { once: true });
+      video.addEventListener("seeked", onSeeked, { once: true });
+      video.addEventListener("error", onError, { once: true });
+      video.src = objectUrl;
     });
   }
 
@@ -106,6 +147,7 @@ export default function ClipsManager({ initialClips, initialCopy = {} }) {
   }
 
   async function uploadFile(file) {
+    setUploadingFile(true);
     setUploadStatus("Uploading video...");
 
     try {
@@ -119,11 +161,15 @@ export default function ClipsManager({ initialClips, initialCopy = {} }) {
         const thumbnailUrl = await uploadToPresignedR2(thumbFile, thumbFile.name, thumbFile.type);
         setSingle((s) => ({ ...s, thumbnail_url: thumbnailUrl }));
         setUploadStatus("Video and thumbnail uploaded.");
-      } catch {
+      } catch (error) {
+        console.error("Thumbnail capture/upload failed", error);
         setUploadStatus("Video uploaded — thumbnail failed, you can add one manually below.");
       }
     } catch (error) {
+      console.error("Video upload failed", error);
       setUploadStatus(`Upload failed: ${error.message}`);
+    } finally {
+      setUploadingFile(false);
     }
   }
 

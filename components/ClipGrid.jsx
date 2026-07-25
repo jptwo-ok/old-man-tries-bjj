@@ -317,26 +317,36 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isFeatured, isExpan
   }
 
   return (
-    <Link
-      ref={tileRef}
-      href={`/clip/${clip.id}`}
-      className={`relative bg-line overflow-hidden group block aspect-square ${
-        isExpanded ? "col-span-4" : ""
-      } ${isFeatured ? "ring-1 ring-legit/50" : ""}`}
-      onMouseEnter={handleEnter}
-      onMouseLeave={handleLeave}
-      onClick={handleClick}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      onContextMenu={(e) => e.preventDefault()}
-      style={{
-        WebkitTouchCallout: "none",
-        ...(isFeatured && !isExpanded
-          ? { boxShadow: "0 0 0 1px rgba(74, 222, 128, 0.35), 0 0 16px rgba(74, 222, 128, 0.14)" }
-          : {}),
-      }}
-    >
+    <>
+      <style jsx global>{`
+        @keyframes featuredGlow {
+          0%, 100% {
+            box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.24), 0 0 14px rgba(74, 222, 128, 0.14);
+          }
+          50% {
+            box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.42), 0 0 20px rgba(74, 222, 128, 0.24);
+          }
+        }
+
+        .featured-clip-glow {
+          animation: featuredGlow 2.6s ease-in-out infinite;
+        }
+      `}</style>
+      <Link
+        ref={tileRef}
+        href={`/clip/${clip.id}`}
+        className={`relative bg-line overflow-hidden group block aspect-square ${
+          isExpanded ? "col-span-4" : ""
+        } ${isFeatured ? "featured-clip-glow" : ""}`}
+        onMouseEnter={handleEnter}
+        onMouseLeave={handleLeave}
+        onClick={handleClick}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onContextMenu={(e) => e.preventDefault()}
+        style={{ WebkitTouchCallout: "none" }}
+      >
       {isExpanded && clip.video_url ? (
         // Expanded view — plays with sound on desktop click-expand or mobile tap-expand.
         // object-contain (not object-cover) so vertical clips letterbox with black bars
@@ -401,12 +411,6 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isFeatured, isExpan
             click to vote
           </span>
         </div>
-      )}
-
-      {isFeatured && !isExpanded && (
-        <span className="absolute top-2 right-2 z-20 font-mono text-[9px] uppercase tracking-wide bg-legit/90 text-mat px-2 py-1 rounded-full shadow-sm">
-          Featured Clip
-        </span>
       )}
 
       {isNewClip && !isExpanded && (
