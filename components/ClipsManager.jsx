@@ -61,19 +61,28 @@ export default function ClipsManager({ initialClips, initialCopy = {} }) {
     setUploadStatus("Uploading video...");
 
     try {
+      console.log("Single-clip upload: starting video upload", {
+        fileName: selectedFile.name,
+        fileType: selectedFile.type,
+        fileSize: selectedFile.size,
+      });
       const videoUrl = await uploadToPresignedR2(selectedFile, selectedFile.name, selectedFile.type || "video/mp4");
+      console.log("Single-clip upload: video upload complete", { videoUrl });
       setSingle((s) => ({ ...s, video_url: videoUrl }));
       setUploadStatus("Video uploaded — grabbing a thumbnail frame...");
 
       let thumbnailUrl = null;
       try {
+        console.log("Single-clip upload: starting thumbnail capture");
         setUploadStatus("Uploading thumbnail...");
         const blob = await captureThumbnail(selectedFile);
+        console.log("Single-clip upload: thumbnail capture complete", { size: blob.size, type: blob.type });
         const thumbFile = new File([blob], `thumb-${Date.now()}.jpg`, { type: "image/jpeg" });
         thumbnailUrl = await uploadToPresignedR2(thumbFile, thumbFile.name, thumbFile.type);
+        console.log("Single-clip upload: thumbnail upload complete", { thumbnailUrl });
         setSingle((s) => ({ ...s, thumbnail_url: thumbnailUrl }));
       } catch (error) {
-        console.error("Thumbnail capture/upload failed", error);
+        console.error("Single-clip upload: thumbnail capture/upload failed", error);
         setUploadStatus("Video uploaded — thumbnail failed, you can add one manually below.");
       }
 
@@ -85,12 +94,21 @@ export default function ClipsManager({ initialClips, initialCopy = {} }) {
         source_credit: single.source_credit || "Unknown — help us ID this",
       };
 
+      console.log("Single-clip upload: creating clip record", payload);
       const res = await fetch("/api/admin/clips", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
+
+      let data = {};
+      try {
+        data = await res.json();
+      } catch (parseError) {
+        console.error("Single-clip upload: failed to parse clip-create response", parseError);
+      }
+
+      console.log("Single-clip upload: clip-create response", { ok: res.ok, status: res.status, data });
 
       if (res.ok) {
         setClips((c) => [data.clip, ...c]);
@@ -99,11 +117,13 @@ export default function ClipsManager({ initialClips, initialCopy = {} }) {
         setUploadStatus("Clip created successfully.");
         setStatus("");
       } else {
-        setUploadStatus(`Upload failed: ${data.error || "Could not create clip"}`);
-        setStatus(`Error: ${data.error || "Could not create clip"}`);
+        const message = data.error || "Could not create clip";
+        console.error("Single-clip upload: clip create failed", message);
+        setUploadStatus(`Upload failed: ${message}`);
+        setStatus(`Error: ${message}`);
       }
     } catch (error) {
-      console.error("Single clip submission failed", error);
+      console.error("Single-clip upload: submission failed", error);
       setUploadStatus(`Upload failed: ${error.message || "Something went wrong"}`);
       setStatus(`Error: ${error.message || "Something went wrong"}`);
     } finally {
@@ -167,25 +187,64 @@ export default function ClipsManager({ initialClips, initialCopy = {} }) {
   }
 
   async function uploadToPresignedR2(file, filename, contentType) {
-    const presignRes = await fetch("/api/admin/clips/presign", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ filename, contentType }),
-    });
-    const presignData = await presignRes.json();
-    if (!presignRes.ok) throw new Error(presignData.error || "Could not prepare upload");
+    console.log("Presigned upload: requesting URL", { filename, contentType, size: file.size });
 
-    const uploadRes = await fetch(presignData.uploadUrl, {
-      method: "PUT",
-      headers: { "Content-Type": contentType },
-      body: file,
-    });
+    let presignRes;
+    try {
+      presignRes = await fetch("/api/admin/clips/presign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename, contentType }),
+      });
+    } catch (error) {
+      console.error("Presigned upload: presign request threw", error);
+      throw new Error(`Presign request failed: ${error.message || "Network error"}`);
+    }
 
-    if (!uploadRes.ok) throw new Error(`Upload failed with status ${uploadRes.status}`);
+    let presignData = {};
+    try {
+      presignData = await presignRes.json();
+    } catch (parseError) {
+      console.error("Presigned upload: failed to parse presign response", parseError);
+      throw new Error("Presign response was not valid JSON");
+    }
+
+    console.log("Presigned upload: presign response", { ok: presignRes.ok, status: presignRes.status, presignData });
+
+    if (!presignRes.ok) {
+      const message = presignData.error || "Could not prepare upload";
+      console.error("Presigned upload: presign failed", message);
+      throw new Error(message);
+    }
+
+    console.log("Presigned upload: starting PUT to R2", { uploadUrl: presignData.uploadUrl });
+
+    let uploadRes;
+    try {
+      uploadRes = await fetch(presignData.uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": contentType },
+        body: file,
+      });
+    } catch (error) {
+      console.error("Presigned upload: PUT request threw", error);
+      throw new Error(`R2 upload request failed: ${error.message || "Network error"}`);
+    }
+
+    console.log("Presigned upload: PUT response", { ok: uploadRes.ok, status: uploadRes.status });
+
+    if (!uploadRes.ok) {
+      const message = `R2 upload failed with status ${uploadRes.status}`;
+      console.error("Presigned upload: PUT failed", message);
+      throw new Error(message);
+    }
+
+    console.log("Presigned upload: PUT completed successfully", { publicUrl: presignData.publicUrl });
     return presignData.publicUrl;
   }
 
   async function prepareSelectedFile(file) {
+    console.log("Single-clip upload: file selected", { fileName: file.name, fileType: file.type, fileSize: file.size });
     setSelectedFile(file);
     setUploadStatus("File selected — ready to add clip.");
     setStatus("");
