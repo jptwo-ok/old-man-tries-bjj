@@ -13,7 +13,6 @@ export default function ProtectedAdminLayout({ children }) {
         <Link href="/admin" className="opacity-80 hover:opacity-100">Dashboard</Link>
         <Link href="/admin/clips" className="opacity-80 hover:opacity-100">Clips</Link>
         <Link href="/admin/theme" className="opacity-80 hover:opacity-100">Theme & copy</Link>
-        <Link href="/admin/announce" className="opacity-80 hover:opacity-100">Announce</Link>
         <Link href="/admin/messages" className="opacity-80 hover:opacity-100">Messages</Link>
         <Link href="/" className="opacity-50 hover:opacity-100 ml-auto">View site →</Link>
         <form action="/api/admin/logout" method="POST">

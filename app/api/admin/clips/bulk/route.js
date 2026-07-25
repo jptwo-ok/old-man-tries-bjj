@@ -33,10 +33,5 @@ export async function POST(req) {
   const { data: inserted, error } = await supabase.from("clips").insert(rows).select();
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-  await supabase.from("upload_batches").insert({
-    clip_count: inserted.length,
-    note: note || null,
-  });
-
   return NextResponse.json({ inserted });
 }

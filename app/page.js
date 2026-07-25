@@ -7,29 +7,21 @@ export const dynamic = "force-dynamic";
 async function getData() {
   const supabase = supabasePublic();
 
-  const [{ data: clips }, { data: votes }, { data: copySetting }, { data: latestBatch }] =
-    await Promise.all([
-      supabase.from("clips").select("*").eq("hidden", false).order("added_at", { ascending: false }),
-      supabase.from("votes").select("clip_id, vote_type"),
-      supabase.from("site_settings").select("value").eq("key", "site_copy").single(),
-      supabase
-        .from("upload_batches")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single(),
-    ]);
+  const [{ data: clips }, { data: votes }, { data: copySetting }] = await Promise.all([
+    supabase.from("clips").select("*").eq("hidden", false).order("added_at", { ascending: false }),
+    supabase.from("votes").select("clip_id, vote_type"),
+    supabase.from("site_settings").select("value").eq("key", "site_copy").single(),
+  ]);
 
   return {
     clips: clips || [],
     votes: votes || [],
     copy: copySetting?.value || {},
-    latestBatch: latestBatch || null,
   };
 }
 
 export default async function HomePage() {
-  const { clips, votes, copy, latestBatch } = await getData();
+  const { clips, votes, copy } = await getData();
 
   await supabaseAdmin().from("page_views").insert({ path: "home" });
 
@@ -46,13 +38,6 @@ export default async function HomePage() {
         <p className="font-mono text-sm opacity-70">{copy.handle || "@OldManTriesBJJ"} · oldmantriesbjj.com</p>
         <ColoredBio text={copy.bio} className="max-w-lg text-sm leading-relaxed opacity-90" />
       </header>
-
-      {latestBatch && (
-        <div className="border border-line rounded-md px-4 py-2 mb-6 text-center text-sm font-mono opacity-90">
-          + {latestBatch.clip_count} new clips added
-          {latestBatch.note ? ` — ${latestBatch.note}` : ""}
-        </div>
-      )}
 
       <ClipGrid
         clips={clips}
