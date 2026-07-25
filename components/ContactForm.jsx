@@ -38,7 +38,7 @@ export default function ContactForm({ onClose }) {
     <div className="border border-line rounded-md p-3 mb-4">
       <div className="flex items-center justify-between mb-2">
         <p className="font-mono text-xs uppercase tracking-wide opacity-70">
-          Questions, comments, or want to host your clips?
+          Questions or comments?
         </p>
         {onClose && (
           <button onClick={onClose} className="font-mono text-xs opacity-50 hover:opacity-100">
