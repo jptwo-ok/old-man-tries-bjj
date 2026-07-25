@@ -86,34 +86,44 @@ export default function ClipsManager({ initialClips, initialCopy = {} }) {
     });
   }
 
+  async function uploadToPresignedR2(file, filename, contentType) {
+    const presignRes = await fetch("/api/admin/clips/presign", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filename, contentType }),
+    });
+    const presignData = await presignRes.json();
+    if (!presignRes.ok) throw new Error(presignData.error || "Could not prepare upload");
+
+    const uploadRes = await fetch(presignData.uploadUrl, {
+      method: "PUT",
+      headers: { "Content-Type": contentType },
+      body: file,
+    });
+
+    if (!uploadRes.ok) throw new Error(`Upload failed with status ${uploadRes.status}`);
+    return presignData.publicUrl;
+  }
+
   async function uploadFile(file) {
     setUploadStatus("Uploading video...");
-    const formData = new FormData();
-    formData.append("file", file);
-    const res = await fetch("/api/admin/clips/upload", { method: "POST", body: formData });
-    const data = await res.json();
-    if (!res.ok) {
-      setUploadStatus(`Upload failed: ${data.error}`);
-      return;
-    }
-    setSingle((s) => ({ ...s, video_url: data.url }));
-    setUploadStatus("Video uploaded — grabbing a thumbnail frame...");
 
     try {
-      const blob = await captureThumbnail(file);
-      const thumbFile = new File([blob], `thumb-${Date.now()}.jpg`, { type: "image/jpeg" });
-      const thumbForm = new FormData();
-      thumbForm.append("file", thumbFile);
-      const thumbRes = await fetch("/api/admin/clips/upload", { method: "POST", body: thumbForm });
-      const thumbData = await thumbRes.json();
-      if (thumbRes.ok) {
-        setSingle((s) => ({ ...s, thumbnail_url: thumbData.url }));
+      const videoUrl = await uploadToPresignedR2(file, file.name, file.type || "video/mp4");
+      setSingle((s) => ({ ...s, video_url: videoUrl }));
+      setUploadStatus("Video uploaded — grabbing a thumbnail frame...");
+
+      try {
+        const blob = await captureThumbnail(file);
+        const thumbFile = new File([blob], `thumb-${Date.now()}.jpg`, { type: "image/jpeg" });
+        const thumbnailUrl = await uploadToPresignedR2(thumbFile, thumbFile.name, thumbFile.type);
+        setSingle((s) => ({ ...s, thumbnail_url: thumbnailUrl }));
         setUploadStatus("Video and thumbnail uploaded.");
-      } else {
+      } catch {
         setUploadStatus("Video uploaded — thumbnail failed, you can add one manually below.");
       }
-    } catch {
-      setUploadStatus("Video uploaded — thumbnail failed, you can add one manually below.");
+    } catch (error) {
+      setUploadStatus(`Upload failed: ${error.message}`);
     }
   }
 
