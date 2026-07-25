@@ -60,7 +60,7 @@ export default function ContactForm({ onClose }) {
         <textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          placeholder="Comment"
+          placeholder="Your message"
           rows={3}
           className="bg-transparent border border-line rounded-md px-3 py-2 text-sm outline-none focus:border-chalk"
           maxLength={1000}
