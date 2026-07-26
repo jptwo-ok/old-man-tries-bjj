@@ -43,7 +43,10 @@ export default async function HomePage() {
         clips={clips}
         voteCounts={voteCounts}
         unratedPosition={copy.unratedPosition || "top"}
-        featuredClipId={copy.featuredClipId || null}
+        // Featured-clip pinning/glow is disabled on the public homepage for now.
+        // The admin "feature" setting and its UI stay fully intact — just not
+        // wired into this page. Pass copy.featuredClipId again to re-enable.
+        featuredClipId={null}
         excludedWords={copy.excludedSearchWords || []}
       />
     </main>

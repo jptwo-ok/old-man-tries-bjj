@@ -39,6 +39,23 @@ function sortClipsForDisplay(clipsToSort, voteCounts, unratedPosition) {
   return unratedPosition === "bottom" ? [...rated, ...unrated] : [...unrated, ...rated];
 }
 
+const CATEGORY_ORDER = ["Standup", "Guard Pass", "Top Game", "Bottom Game", "Leg Game"];
+const UNCATEGORIZED = "Uncategorized";
+
+// Buckets clips into fixed-order category sections (anything not in
+// CATEGORY_ORDER — including the literal "Uncategorized" default — falls
+// into a final "Uncategorized" bucket). Empty buckets are dropped.
+function groupClipsByCategory(clipsToGroup) {
+  const buckets = new Map([...CATEGORY_ORDER, UNCATEGORIZED].map((cat) => [cat, []]));
+  for (const clip of clipsToGroup) {
+    const bucket = buckets.has(clip.category) ? clip.category : UNCATEGORIZED;
+    buckets.get(bucket).push(clip);
+  }
+  return [...buckets.entries()]
+    .map(([category, clips]) => ({ category, clips }))
+    .filter((section) => section.clips.length > 0);
+}
+
 const STOPWORDS = new Set([
   "a", "an", "the", "to", "of", "in", "on", "at", "for", "and", "or", "but",
   "with", "from", "by", "is", "are", "was", "were", "be", "been", "this",
@@ -92,8 +109,10 @@ export default function ClipGrid({ clips, voteCounts, unratedPosition = "top", f
     return clips.filter((c) => (c.title || "").toLowerCase().includes(term));
   }, [clips, search]);
 
+  const hasActiveSearch = search.trim() !== "";
+
+  // Flat, ungrouped, featured-pinned list — used only while a search is active.
   const sortedClips = useMemo(() => {
-    const hasActiveSearch = search.trim() !== "";
     const sorted = sortClipsForDisplay(searchedClips, voteCounts, unratedPosition);
 
     if (hasActiveSearch || !featuredClipId) return sorted;
@@ -102,7 +121,16 @@ export default function ClipGrid({ clips, voteCounts, unratedPosition = "top", f
     if (!featuredClip) return sorted;
 
     return [featuredClip, ...sorted.filter((clip) => clip.id !== featuredClip.id)];
-  }, [featuredClipId, searchedClips, search, voteCounts, unratedPosition]);
+  }, [featuredClipId, searchedClips, hasActiveSearch, voteCounts, unratedPosition]);
+
+  // Grouped-by-category sections — used for the default (no search) view.
+  // Each section is sorted independently with the exact same sort logic.
+  const groupedSections = useMemo(() => {
+    return groupClipsByCategory(searchedClips).map((section) => ({
+      category: section.category,
+      clips: sortClipsForDisplay(section.clips, voteCounts, unratedPosition),
+    }));
+  }, [searchedClips, voteCounts, unratedPosition]);
 
   if (clips.length === 0) {
     return (
@@ -118,7 +146,7 @@ export default function ClipGrid({ clips, voteCounts, unratedPosition = "top", f
         <span className="font-mono text-xs opacity-80 shrink-0">{clips.length} clips</span>
         <div className="flex items-center gap-3">
           <div className="flex flex-col items-end gap-1">
-            <a href="https://ko-fi.com/oldmantriesbjj" target="_blank" rel="noopener noreferrer" className="font-mono text-[11px] underline opacity-60 hover:opacity-100">Tip</a>
+            {/* <a href="https://ko-fi.com/oldmantriesbjj" target="_blank" rel="noopener noreferrer" className="font-mono text-[11px] underline opacity-60 hover:opacity-100">Tip</a> */}
             <Link href="/about" className="font-mono text-[11px] underline opacity-60 hover:opacity-100">
               Contact
             </Link>
@@ -154,32 +182,51 @@ export default function ClipGrid({ clips, voteCounts, unratedPosition = "top", f
         </div>
       )}
 
-      {sortedClips.length === 0 ? (
-        <p className="text-center opacity-60 text-sm py-16 font-mono">No clips match "{search}".</p>
+      {hasActiveSearch ? (
+        sortedClips.length === 0 ? (
+          <p className="text-center opacity-60 text-sm py-16 font-mono">No clips match "{search}".</p>
+        ) : (
+          <div className="grid gap-[2px] grid-cols-4">
+            {sortedClips.map((clip) =>
+              renderClipTile(clip, { voteCounts, featuredClipId, search, expandedId, setExpandedId })
+            )}
+          </div>
+        )
       ) : (
-      <div className={`grid gap-[2px] ${expandedId ? "grid-cols-4" : "grid-cols-3"}`}>
-        {sortedClips.map((clip) => {
-          const counts = voteCounts[clip.id] || { UP: 0, DOWN: 0 };
-          const total = counts.UP + counts.DOWN;
-          const unrated = total === 0;
-          const thumb = thumbUrl(clip);
-          return (
-            <ClipTile
-              key={clip.id}
-              clip={clip}
-              counts={counts}
-              unrated={unrated}
-              thumb={thumb}
-              isNewClip={unrated}
-              isFeatured={featuredClipId === clip.id && !search.trim()}
-              isExpanded={expandedId === clip.id}
-              setExpandedId={setExpandedId}
-            />
-          );
-        })}
-      </div>
+        <div className="space-y-5">
+          {groupedSections.map((section) => (
+            <div key={section.category}>
+              <div className="font-mono text-[11px] opacity-50 mb-1.5">{section.category}</div>
+              <div className="grid gap-[2px] grid-cols-4">
+                {section.clips.map((clip) =>
+                  renderClipTile(clip, { voteCounts, featuredClipId, search, expandedId, setExpandedId })
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
+  );
+}
+
+function renderClipTile(clip, { voteCounts, featuredClipId, search, expandedId, setExpandedId }) {
+  const counts = voteCounts[clip.id] || { UP: 0, DOWN: 0 };
+  const total = counts.UP + counts.DOWN;
+  const unrated = total === 0;
+  const thumb = thumbUrl(clip);
+  return (
+    <ClipTile
+      key={clip.id}
+      clip={clip}
+      counts={counts}
+      unrated={unrated}
+      thumb={thumb}
+      isNewClip={unrated}
+      isFeatured={featuredClipId === clip.id && !search.trim()}
+      isExpanded={expandedId === clip.id}
+      setExpandedId={setExpandedId}
+    />
   );
 }
 
