@@ -344,7 +344,15 @@ export default function ClipsManager({ initialClips, initialCopy = {} }) {
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
-      setStatus(`Error: ${data.error || "Could not delete clip"}`);
+      console.error(`Failed to delete clip ${clip.id}: HTTP ${res.status}`, data);
+
+      const message =
+        res.status === 401
+          ? "Your admin session expired — please refresh the page and log in again"
+          : data.error || "Could not delete clip";
+
+      setStatus(`Error: ${message}`);
+      alert(`Error: ${message}`);
       return;
     }
 
