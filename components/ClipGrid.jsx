@@ -64,6 +64,44 @@ const STOPWORDS = new Set([
   "when", "while", "your", "you", "i", "my", "vs", "you're",
 ]);
 
+// First word of a title that isn't a stopword — used to group unrated
+// clips by rough subject in sortClipsForCategorySection below.
+function extractPrimaryKeyword(title) {
+  const rawWords = (title || "").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  return rawWords.find((w) => !STOPWORDS.has(w)) || "";
+}
+
+// Two-tier sort used only for the grouped/category view:
+// Tier 1 — clips with at least one thumbs-up, ranked by score (UP*2 - DOWN*1),
+// newest as tiebreak. Tier 2 — everything else, alphabetized by primary
+// subject keyword, newest first within the same keyword. Tier 1 always
+// comes first. (sortClipsForDisplay is unchanged and still drives the flat
+// search view.)
+function sortClipsForCategorySection(clipsToSort, voteCounts) {
+  const tier1 = [];
+  const tier2 = [];
+  for (const clip of clipsToSort) {
+    const v = voteCounts[clip.id];
+    (v && v.UP > 0 ? tier1 : tier2).push(clip);
+  }
+
+  tier1.sort((a, b) => {
+    const scoreOf = (c) => {
+      const v = voteCounts[c.id] || { UP: 0, DOWN: 0 };
+      return v.UP * 2 - v.DOWN * 1;
+    };
+    const diff = scoreOf(b) - scoreOf(a);
+    return diff !== 0 ? diff : new Date(b.added_at) - new Date(a.added_at);
+  });
+
+  tier2.sort((a, b) => {
+    const kwDiff = extractPrimaryKeyword(a.title).localeCompare(extractPrimaryKeyword(b.title));
+    return kwDiff !== 0 ? kwDiff : new Date(b.added_at) - new Date(a.added_at);
+  });
+
+  return [...tier1, ...tier2];
+}
+
 // How long (ms) a finger has to stay down before it counts as a long-press
 // (navigate to the clip's own page) instead of a tap (expand in place).
 const LONG_PRESS_MS = 450;
@@ -124,13 +162,13 @@ export default function ClipGrid({ clips, voteCounts, unratedPosition = "top", f
   }, [featuredClipId, searchedClips, hasActiveSearch, voteCounts, unratedPosition]);
 
   // Grouped-by-category sections — used for the default (no search) view.
-  // Each section is sorted independently with the exact same sort logic.
+  // Each section is sorted independently with the two-tier keyword sort.
   const groupedSections = useMemo(() => {
     return groupClipsByCategory(searchedClips).map((section) => ({
       category: section.category,
-      clips: sortClipsForDisplay(section.clips, voteCounts, unratedPosition),
+      clips: sortClipsForCategorySection(section.clips, voteCounts),
     }));
-  }, [searchedClips, voteCounts, unratedPosition]);
+  }, [searchedClips, voteCounts]);
 
   if (clips.length === 0) {
     return (
