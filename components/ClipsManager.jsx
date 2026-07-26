@@ -521,7 +521,7 @@ export default function ClipsManager({ initialClips, initialCopy = {} }) {
                   clip.hidden ? "opacity-40" : ""
                 } ${isFeatured ? "bg-legit/10 font-semibold" : ""}`}
               >
-                <span className="flex-1 truncate">{clip.title}</span>
+                <EditableField clip={clip} field="title" placeholder="title" onSave={saveField} />
                 <EditableField clip={clip} field="video_url" placeholder="video url" onSave={saveField} />
                 <EditableField clip={clip} field="thumbnail_url" placeholder="thumb url" onSave={saveField} />
                 <CreditInput clip={clip} onSave={saveCredit} />
