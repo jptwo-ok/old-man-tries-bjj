@@ -42,6 +42,26 @@ function sortClipsForDisplay(clipsToSort, voteCounts, unratedPosition) {
 const CATEGORY_ORDER = ["Standup", "Guard Pass", "Top Game", "Bottom Game", "Leg Game"];
 const UNCATEGORIZED = "Uncategorized";
 
+// Orders featured clips by category (CATEGORY_ORDER, anything else last), then
+// by the same vote-score logic used within a regular category section.
+function sortFeaturedClips(clipsToSort, voteCounts) {
+  const orderIndex = (cat) => {
+    const idx = CATEGORY_ORDER.indexOf(cat);
+    return idx === -1 ? CATEGORY_ORDER.length : idx;
+  };
+  const byCategory = new Map();
+  for (const clip of clipsToSort) {
+    if (!byCategory.has(clip.category)) byCategory.set(clip.category, []);
+    byCategory.get(clip.category).push(clip);
+  }
+  const categories = [...byCategory.keys()].sort((a, b) => orderIndex(a) - orderIndex(b));
+  const result = [];
+  for (const cat of categories) {
+    result.push(...sortClipsForCategorySection(byCategory.get(cat), voteCounts));
+  }
+  return result;
+}
+
 // Buckets clips into fixed-order category sections (anything not in
 // CATEGORY_ORDER — including the literal "Uncategorized" default — falls
 // into a final "Uncategorized" bucket). Empty buckets are dropped.
@@ -109,11 +129,29 @@ const LONG_PRESS_MS = 450;
 // scroll, not a tap or a hold — cancels both behaviors.
 const MOVE_CANCEL_PX = 10;
 
-export default function ClipGrid({ clips, voteCounts, unratedPosition = "top", featuredClipId = null, excludedWords = [] }) {
+export default function ClipGrid({ clips: initialClips, voteCounts, unratedPosition = "top", featuredClipId = null, excludedWords = [], isAdmin = false }) {
+  const [clips, setClips] = useState(initialClips);
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   // Only one tile can be expanded (mobile tap-to-expand) at a time.
   const [expandedId, setExpandedId] = useState(null);
+
+  async function toggleFeatured(clip) {
+    const nextFeatured = !clip.featured;
+    setClips((cs) => cs.map((c) => (c.id === clip.id ? { ...c, featured: nextFeatured } : c)));
+
+    const res = await fetch("/api/admin/clips", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: clip.id, featured: nextFeatured }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setClips((cs) => cs.map((c) => (c.id === clip.id ? { ...c, featured: !nextFeatured } : c)));
+      alert(`Error: ${data.error || "Could not update featured status"}`);
+    }
+  }
 
   const excludedSet = useMemo(() => {
     const set = new Set(STOPWORDS);
@@ -168,6 +206,13 @@ export default function ClipGrid({ clips, voteCounts, unratedPosition = "top", f
       category: section.category,
       clips: sortClipsForCategorySection(section.clips, voteCounts),
     }));
+  }, [searchedClips, voteCounts]);
+
+  // Manually-curated Featured section — shown above Standup in the grouped
+  // view, ordered by category then by the usual vote-score logic.
+  const featuredSection = useMemo(() => {
+    const featured = searchedClips.filter((clip) => clip.featured);
+    return featured.length > 0 ? sortFeaturedClips(featured, voteCounts) : [];
   }, [searchedClips, voteCounts]);
 
   if (clips.length === 0) {
@@ -226,29 +271,56 @@ export default function ClipGrid({ clips, voteCounts, unratedPosition = "top", f
         ) : (
           <div className="grid gap-[2px] grid-cols-4">
             {sortedClips.map((clip) =>
-              renderClipTile(clip, { voteCounts, featuredClipId, search, expandedId, setExpandedId })
+              renderClipTile(clip, { voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured: toggleFeatured })
             )}
           </div>
         )
       ) : (
         <div className="space-y-5">
+          {featuredSection.length > 0 && (
+            <div className="featured-section-glow rounded-md">
+              <div className="font-mono text-[11px] opacity-50 mb-1.5">Featured</div>
+              <div className="grid gap-[2px] grid-cols-4">
+                {featuredSection.map((clip) =>
+                  renderClipTile(clip, { voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured: toggleFeatured })
+                )}
+              </div>
+            </div>
+          )}
           {groupedSections.map((section) => (
             <div key={section.category}>
               <div className="font-mono text-[11px] opacity-50 mb-1.5">{section.category}</div>
               <div className="grid gap-[2px] grid-cols-4">
                 {section.clips.map((clip) =>
-                  renderClipTile(clip, { voteCounts, featuredClipId, search, expandedId, setExpandedId })
+                  renderClipTile(clip, { voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured: toggleFeatured })
                 )}
               </div>
             </div>
           ))}
         </div>
       )}
+
+      <style jsx global>{`
+        @keyframes featuredSectionGlow {
+          0%, 100% {
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12), 0 0 14px 3px rgba(255, 255, 255, 0.06), 0 0 30px 8px rgba(255, 255, 255, 0.04);
+          }
+          50% {
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22), 0 0 24px 6px rgba(255, 255, 255, 0.12), 0 0 50px 14px rgba(255, 255, 255, 0.07);
+          }
+        }
+
+        .featured-section-glow {
+          animation: featuredSectionGlow 3.6s ease-in-out infinite;
+          position: relative;
+          z-index: 1;
+        }
+      `}</style>
     </div>
   );
 }
 
-function renderClipTile(clip, { voteCounts, featuredClipId, search, expandedId, setExpandedId }) {
+function renderClipTile(clip, { voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured }) {
   const counts = voteCounts[clip.id] || { UP: 0, DOWN: 0 };
   const total = counts.UP + counts.DOWN;
   const unrated = total === 0;
@@ -264,11 +336,13 @@ function renderClipTile(clip, { voteCounts, featuredClipId, search, expandedId, 
       isFeatured={featuredClipId === clip.id && !search.trim()}
       isExpanded={expandedId === clip.id}
       setExpandedId={setExpandedId}
+      isAdmin={isAdmin}
+      onToggleFeatured={onToggleFeatured}
     />
   );
 }
 
-function ClipTile({ clip, counts, unrated, thumb, isNewClip, isFeatured, isExpanded, setExpandedId }) {
+function ClipTile({ clip, counts, unrated, thumb, isNewClip, isFeatured, isExpanded, setExpandedId, isAdmin, onToggleFeatured }) {
   // Desktop-only hover preview — unrelated to mobile tap/hold logic below.
   const [hovering, setHovering] = useState(false);
   const [showDots, setShowDots] = useState(false);
@@ -504,6 +578,34 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isFeatured, isExpan
         <span className="absolute top-1 left-1 font-mono text-[9px] bg-chalk text-mat px-1 rounded-sm tracking-wide">
           NEW
         </span>
+      )}
+
+      {isAdmin && !isExpanded && (
+        <button
+          type="button"
+          onTouchStart={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            onToggleFeatured(clip);
+          }}
+          aria-label={clip.featured ? "Remove from Featured" : "Add to Featured"}
+          className="absolute top-1 right-1 z-10 pointer-events-auto"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill={clip.featured ? "white" : "none"}
+            stroke="white"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.8))" }}
+          >
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+          </svg>
+        </button>
       )}
 
       {thumb && !hovering && !isExpanded && (

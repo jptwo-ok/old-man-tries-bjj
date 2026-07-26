@@ -1,6 +1,7 @@
 import { supabasePublic, supabaseAdmin } from "@/lib/supabase";
 import ClipGrid from "@/components/ClipGrid";
 import ColoredBio from "@/components/ColoredBio";
+import { isAdmin } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,7 @@ export default async function HomePage() {
         // wired into this page. Pass copy.featuredClipId again to re-enable.
         featuredClipId={null}
         excludedWords={copy.excludedSearchWords || []}
+        isAdmin={isAdmin()}
       />
     </main>
   );

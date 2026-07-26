@@ -34,7 +34,7 @@ export async function PATCH(req) {
   const supabase = supabaseAdmin();
 
   const { id, ...updates } = body;
-  const allowedFields = ["title", "video_url", "thumbnail_url", "source_credit", "hidden"];
+  const allowedFields = ["title", "video_url", "thumbnail_url", "source_credit", "hidden", "featured"];
   const invalidFields = Object.keys(updates).filter((key) => !allowedFields.includes(key));
 
   if (invalidFields.length > 0) {
