@@ -42,6 +42,12 @@ function sortClipsForDisplay(clipsToSort, voteCounts, unratedPosition) {
 const CATEGORY_ORDER = ["Standup", "Guard Pass", "Top Game", "Bottom Game", "Leg Game"];
 const UNCATEGORIZED = "Uncategorized";
 
+// Kebab-case anchor id for a category section (e.g. "Guard Pass" -> "guard-pass"),
+// used so the homepage "Jump to:" nav links can scroll to the right section.
+function categoryToId(category) {
+  return category.toLowerCase().replace(/\s+/g, "-");
+}
+
 // Orders featured clips by category (CATEGORY_ORDER, anything else last), then
 // by the same vote-score logic used within a regular category section.
 function sortFeaturedClips(clipsToSort, voteCounts) {
@@ -229,7 +235,7 @@ export default function ClipGrid({ clips: initialClips, voteCounts, unratedPosit
         <span className="font-mono text-xs opacity-80 shrink-0">{clips.length} clips</span>
         <div className="flex items-center gap-3">
           <div className="flex flex-col items-end gap-1">
-            {/* <a href="https://ko-fi.com/oldmantriesbjj" target="_blank" rel="noopener noreferrer" className="font-mono text-[11px] underline opacity-60 hover:opacity-100">Tip</a> */}
+            <a href="https://ko-fi.com/oldmantriesbjj" target="_blank" rel="noopener noreferrer" className="font-mono text-[11px] underline opacity-60 hover:opacity-100">Buy me a coffee</a>
             <Link href="/about" className="font-mono text-[11px] underline opacity-60 hover:opacity-100">
               Contact
             </Link>
@@ -288,7 +294,7 @@ export default function ClipGrid({ clips: initialClips, voteCounts, unratedPosit
             </div>
           )}
           {groupedSections.map((section) => (
-            <div key={section.category}>
+            <div key={section.category} id={categoryToId(section.category)}>
               <div className="font-mono text-[11px] opacity-50 mb-1.5">{section.category}</div>
               <div className="grid gap-[2px] grid-cols-4">
                 {section.clips.map((clip) =>

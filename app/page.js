@@ -40,6 +40,15 @@ export default async function HomePage() {
         <ColoredBio text={copy.bio} className="max-w-lg text-sm leading-relaxed opacity-90" />
       </header>
 
+      <nav className="flex flex-wrap items-baseline gap-x-2 gap-y-1 font-mono text-[11px] mb-4">
+        <span className="opacity-50">Jump to:</span>
+        <a href="#standup" className="underline opacity-60 hover:opacity-100">Standup</a>
+        <a href="#guard-pass" className="underline opacity-60 hover:opacity-100">Guard Pass</a>
+        <a href="#top-game" className="underline opacity-60 hover:opacity-100">Top Game</a>
+        <a href="#bottom-game" className="underline opacity-60 hover:opacity-100">Bottom Game</a>
+        <a href="#leg-game" className="underline opacity-60 hover:opacity-100">Leg Game</a>
+      </nav>
+
       <ClipGrid
         clips={clips}
         voteCounts={voteCounts}
