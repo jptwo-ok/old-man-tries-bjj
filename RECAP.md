@@ -1,16 +1,21 @@
 # RECAP
 
 ## Task
-Update category for two clips, matched by exact title (case-insensitive), verifying the row exists before updating:
-- "pass deep half" → "Top Game"
-- "stack pass counter" → "Bottom Game"
-
-If either title isn't found, report clearly rather than guessing at a similar title.
+Count clips grouped by exact category value and print each category name with its count, plus the total across all clips.
 
 ## What was done
-- Searched all clips for a case-insensitive exact match on each title.
-- **"pass deep half"** — found exactly one match, `id=c2f20a1d-7ceb-400f-9a47-41a9353cfaef`. Category updated: `Guard Pass` → `Top Game`.
-- **"stack pass counter"** — found exactly one match, `id=1af14f70-5723-4501-8adf-cac6a293edc0`. Category updated: `Guard Pass` → `Bottom Game`.
+Queried the `clips` table directly and grouped by the exact `category` column value. Checked for hidden clips separately — there are none (0 of 546 rows have `hidden = true`), so the full-table count and the visible-only count are identical.
 
 ## Result
-Both titles were found unambiguously (single match each) and both updates succeeded. No "not found" or ambiguous-match case applied.
+
+| Category | Count |
+|---|---|
+| Bottom Game | 241 |
+| Top Game | 176 |
+| Standup | 61 |
+| Guard Pass | 45 |
+| Leg Game | 22 |
+| Uncategorized | 1 |
+| **Total** | **546** |
+
+The single remaining "Uncategorized" clip is "openmat" (per the prior categorization work).
