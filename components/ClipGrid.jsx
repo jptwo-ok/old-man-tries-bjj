@@ -733,7 +733,7 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isFeatured, isExpan
 
       {!unrated && !isExpanded && (
         <div
-          className={`absolute inset-0 flex items-center justify-center gap-3 transition-opacity duration-300 ${
+          className={`absolute inset-0 flex flex-col items-center justify-center gap-1 transition-opacity duration-300 ${
             showDots ? "opacity-100" : "opacity-0"
           }`}
         >
