@@ -1,21 +1,16 @@
 # RECAP
 
 ## Task
-Count clips grouped by exact category value and print each category name with its count, plus the total across all clips.
+1. Find a clip whose title is a raw-looking alphanumeric string approximately matching "DTsstEskRsy" (case-insensitive, exact casing uncertain). If exactly one match, rename its title to "Body Lock Takedown" and keep its category unchanged. If more than one or no match, report what was found.
+2. Find the clip titled "openmat" (case-insensitive) and set its category to "Top Game".
 
 ## What was done
-Queried the `clips` table directly and grouped by the exact `category` column value. Checked for hidden clips separately — there are none (0 of 546 rows have `hidden = true`), so the full-table count and the visible-only count are identical.
+
+### Part 1 — Rename
+Searched all clips for raw-looking (no-space, alphanumeric) titles and ranked them by edit distance to "DTsstEskRsy". Found exactly one exact case-insensitive match, `id=6056f33a-ad73-4c2a-b425-782f6a4bb6b4`, title `"DTsstEskRsy"`, category `Standup` — unambiguous (next-closest candidate was 9 edits away). Renamed its title to **"Body Lock Takedown"**; category left untouched at `Standup`.
+
+### Part 2 — Categorize
+Found exactly one clip titled "openmat" (`id=a905d279-05f3-4010-ba31-a5fa8b306f42`), previously `Uncategorized`. Updated its category to **"Top Game"**.
 
 ## Result
-
-| Category | Count |
-|---|---|
-| Bottom Game | 241 |
-| Top Game | 176 |
-| Standup | 61 |
-| Guard Pass | 45 |
-| Leg Game | 22 |
-| Uncategorized | 1 |
-| **Total** | **546** |
-
-The single remaining "Uncategorized" clip is "openmat" (per the prior categorization work).
+Both operations succeeded with unambiguous single matches. The "Uncategorized" category is now empty — every clip has a category.
