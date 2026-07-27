@@ -97,25 +97,35 @@ function extractPrimaryKeyword(title) {
   return rawWords.find((w) => !STOPWORDS.has(w)) || "";
 }
 
-// Two-tier sort used only for the grouped/category view:
-// Tier 1 — clips with at least one thumbs-up, ranked by score (UP*2 - DOWN*1),
-// newest as tiebreak. Tier 2 — everything else, alphabetized by primary
-// subject keyword, newest first within the same keyword. Tier 1 always
-// comes first. (sortClipsForDisplay is unchanged and still drives the flat
-// search view.)
+// Three-tier sort used only for the grouped/category view:
+// Tier 1 — clips with a positive net score (UP*2 - DOWN*1 > 0), ranked by
+// score descending, newest as tiebreak. Tier 2 — clips with no votes at all,
+// alphabetized by primary subject keyword, newest first within the same
+// keyword. Tier 3 — clips with at least one vote but a non-positive net
+// score, ranked by score ascending (worst at the very bottom), newest as
+// tiebreak. Render order is tier 1, tier 2, tier 3. (sortClipsForDisplay is
+// unchanged and still drives the flat search view.)
 function sortClipsForCategorySection(clipsToSort, voteCounts) {
+  const scoreOf = (c) => {
+    const v = voteCounts[c.id] || { UP: 0, DOWN: 0 };
+    return v.UP * 2 - v.DOWN * 1;
+  };
+
   const tier1 = [];
   const tier2 = [];
+  const tier3 = [];
   for (const clip of clipsToSort) {
-    const v = voteCounts[clip.id];
-    (v && v.UP > 0 ? tier1 : tier2).push(clip);
+    const v = voteCounts[clip.id] || { UP: 0, DOWN: 0 };
+    if (scoreOf(clip) > 0) {
+      tier1.push(clip);
+    } else if (v.UP === 0 && v.DOWN === 0) {
+      tier2.push(clip);
+    } else {
+      tier3.push(clip);
+    }
   }
 
   tier1.sort((a, b) => {
-    const scoreOf = (c) => {
-      const v = voteCounts[c.id] || { UP: 0, DOWN: 0 };
-      return v.UP * 2 - v.DOWN * 1;
-    };
     const diff = scoreOf(b) - scoreOf(a);
     return diff !== 0 ? diff : new Date(b.added_at) - new Date(a.added_at);
   });
@@ -125,7 +135,12 @@ function sortClipsForCategorySection(clipsToSort, voteCounts) {
     return kwDiff !== 0 ? kwDiff : new Date(b.added_at) - new Date(a.added_at);
   });
 
-  return [...tier1, ...tier2];
+  tier3.sort((a, b) => {
+    const diff = scoreOf(a) - scoreOf(b);
+    return diff !== 0 ? diff : new Date(b.added_at) - new Date(a.added_at);
+  });
+
+  return [...tier1, ...tier2, ...tier3];
 }
 
 // How long (ms) a finger has to stay down before it counts as a long-press
