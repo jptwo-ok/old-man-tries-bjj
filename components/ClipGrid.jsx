@@ -232,24 +232,33 @@ export default function ClipGrid({ clips: initialClips, voteCounts, unratedPosit
   return (
     <div>
       <div className="flex items-center justify-between mb-2 gap-3">
+        <nav className="flex flex-wrap items-baseline gap-x-2 gap-y-1 font-mono text-[11px]">
+          <span className="opacity-50">Jump to:</span>
+          <a href="#standup" className="underline opacity-60 hover:opacity-100">Standup</a>
+          <a href="#guard-pass" className="underline opacity-60 hover:opacity-100">Guard Pass</a>
+          <a href="#top-game" className="underline opacity-60 hover:opacity-100">Top Game</a>
+          <a href="#bottom-game" className="underline opacity-60 hover:opacity-100">Bottom Game</a>
+          <a href="#leg-game" className="underline opacity-60 hover:opacity-100">Leg Game</a>
+        </nav>
+        <button
+          onClick={() => setSearchOpen((o) => !o)}
+          aria-label="Search techniques"
+          className="w-7 h-7 flex items-center justify-center border border-line rounded-md hover:border-chalk shrink-0"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="7" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="flex items-center justify-between mb-2 gap-3">
         <span className="font-mono text-xs opacity-80 shrink-0">{clips.length} clips</span>
-        <div className="flex items-center gap-3">
-          <div className="flex flex-col items-end gap-1">
-            <a href="https://ko-fi.com/oldmantriesbjj" target="_blank" rel="noopener noreferrer" className="font-mono text-[11px] underline opacity-60 hover:opacity-100">Buy me a coffee</a>
-            <Link href="/about" className="font-mono text-[11px] underline opacity-60 hover:opacity-100">
-              Contact
-            </Link>
-          </div>
-          <button
-            onClick={() => setSearchOpen((o) => !o)}
-            aria-label="Search techniques"
-            className="w-7 h-7 flex items-center justify-center border border-line rounded-md hover:border-chalk shrink-0"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="7" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-          </button>
+        <div className="flex flex-col items-end gap-1">
+          <Link href="/about" className="font-mono text-[11px] underline opacity-60 hover:opacity-100">
+            Contact
+          </Link>
+          <a href="https://ko-fi.com/oldmantriesbjj" target="_blank" rel="noopener noreferrer" className="font-mono text-[11px] underline opacity-60 hover:opacity-100">Buy me a coffee</a>
         </div>
       </div>
 
