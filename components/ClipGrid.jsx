@@ -304,7 +304,10 @@ export default function ClipGrid({ clips: initialClips, voteCounts, unratedPosit
           )}
           {groupedSections.map((section) => (
             <div key={section.category} id={categoryToId(section.category)}>
-              <div className="font-mono text-[11px] opacity-50 mb-1.5">{section.category}</div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="font-mono text-[11px] opacity-50">{section.category}</span>
+                <a href="#top" className="font-mono text-[11px] underline opacity-40 hover:opacity-100">back to top</a>
+              </div>
               <div className="grid gap-[2px] grid-cols-4">
                 {section.clips.map((clip) =>
                   renderClipTile(clip, { voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured: toggleFeatured })
