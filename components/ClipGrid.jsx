@@ -397,6 +397,10 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isFeatured, isExpan
   const fadeTimer = useRef(null);
   const router = useRouter();
   const tileRef = useRef(null);
+  const expandedVideoRef = useRef(null);
+  // True when mobile autoplay-with-sound was blocked and we had to fall
+  // back to a muted autoplay — shows a small "tap for sound" affordance.
+  const [needsUnmuteTap, setNeedsUnmuteTap] = useState(false);
 
   // Mobile touch-gesture tracking.
   const longPressTimer = useRef(null);
@@ -414,6 +418,28 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isFeatured, isExpan
   useEffect(() => {
     if (isExpanded && tileRef.current) {
       tileRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [isExpanded]);
+
+  // Mobile browsers frequently block autoPlay on an unmuted <video>, so on
+  // top of the autoPlay attribute (which works on some browsers) we also
+  // explicitly call play() here. If that call rejects (blocked unmuted
+  // autoplay), fall back to a muted autoplay so the clip at least plays,
+  // and surface a small tap-to-unmute affordance.
+  useEffect(() => {
+    if (!isExpanded) {
+      setNeedsUnmuteTap(false);
+      return;
+    }
+    const video = expandedVideoRef.current;
+    if (!video) return;
+    const playPromise = video.play();
+    if (playPromise && typeof playPromise.catch === "function") {
+      playPromise.catch(() => {
+        video.muted = true;
+        setNeedsUnmuteTap(true);
+        video.play().catch(() => {});
+      });
     }
   }, [isExpanded]);
 
@@ -495,6 +521,17 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isFeatured, isExpan
     setExpandedId(isExpanded ? null : clip.id);
   }
 
+  function handleUnmuteTap(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    const video = expandedVideoRef.current;
+    if (video) {
+      video.muted = false;
+      video.play().catch(() => {});
+    }
+    setNeedsUnmuteTap(false);
+  }
+
   async function recordHoverIfNeeded(durationMs) {
     try {
       if (durationMs < 1000) return;
@@ -562,6 +599,7 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isFeatured, isExpan
         // left/right at this square size, instead of cropping or stretching.
         // eslint-disable-next-line jsx-a11y/media-has-caption
         <video
+          ref={expandedVideoRef}
           src={clip.video_url}
           autoPlay
           playsInline
@@ -609,6 +647,22 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isFeatured, isExpan
               <path d="M19 19l-6-6" />
             </svg>
           </button>
+          {needsUnmuteTap && (
+            <button
+              type="button"
+              onTouchStart={(e) => e.stopPropagation()}
+              onTouchEnd={handleUnmuteTap}
+              onClick={handleUnmuteTap}
+              aria-label="Tap for sound"
+              className="absolute bottom-3 left-3 z-10 pointer-events-auto rounded-full bg-black/70 p-2 text-chalk"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <line x1="23" y1="9" x2="17" y2="15" />
+                <line x1="17" y1="9" x2="23" y2="15" />
+              </svg>
+            </button>
+          )}
         </>
       )}
 
