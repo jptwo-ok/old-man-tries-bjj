@@ -260,7 +260,7 @@ export default function ClipGrid({ clips: initialClips, voteCounts: initialVoteC
   return (
     <div>
       <div className="flex items-center justify-between mb-2 gap-3">
-        <nav className="flex flex-wrap items-baseline gap-x-2 gap-y-1 font-mono text-[11px]">
+        <nav className="flex items-baseline gap-x-2 font-mono text-[10px] whitespace-nowrap overflow-x-auto min-w-0">
           <span className="opacity-50">Jump to:</span>
           <a href="#guard-pass" className="underline opacity-60 hover:opacity-100">Guard Pass</a>
           <a href="#top-game" className="underline opacity-60 hover:opacity-100">Top Game</a>
