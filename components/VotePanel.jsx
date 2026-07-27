@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabasePublic } from "@/lib/supabase";
 import { getVoterCookie } from "@/lib/voterCookie";
 
-export default function VotePanel({ clipId, initialCounts, insetPercent = 15, size = "large" }) {
+export default function VotePanel({ clipId, initialCounts, insetPercent = 15, size = "large", onVoteChange }) {
   const [counts, setCounts] = useState(initialCounts);
   const [myVote, setMyVote] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -71,6 +71,8 @@ export default function VotePanel({ clipId, initialCounts, insetPercent = 15, si
         if (prevVote) next[prevVote] = (next[prevVote] || 0) + 1;
         return next;
       });
+    } else if (onVoteChange) {
+      onVoteChange(clipId, voteType, prevVote);
     }
     setBusy(false);
   }

@@ -150,12 +150,25 @@ const LONG_PRESS_MS = 450;
 // scroll, not a tap or a hold — cancels both behaviors.
 const MOVE_CANCEL_PX = 10;
 
-export default function ClipGrid({ clips: initialClips, voteCounts, unratedPosition = "top", featuredClipId = null, excludedWords = [], isAdmin = false }) {
+export default function ClipGrid({ clips: initialClips, voteCounts: initialVoteCounts, unratedPosition = "top", featuredClipId = null, excludedWords = [], isAdmin = false }) {
   const [clips, setClips] = useState(initialClips);
+  const [voteCounts, setVoteCounts] = useState(initialVoteCounts);
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   // Only one tile can be expanded (mobile tap-to-expand) at a time.
   const [expandedId, setExpandedId] = useState(null);
+
+  // Mirrors VotePanel's own optimistic update so the tile's local vote
+  // display and ClipGrid's sort order never disagree about the count.
+  function handleVoteChange(clipId, voteType, prevVote) {
+    setVoteCounts((vc) => {
+      const current = vc[clipId] || { UP: 0, DOWN: 0 };
+      const next = { ...current };
+      if (prevVote) next[prevVote] = Math.max(0, next[prevVote] - 1);
+      next[voteType] = (next[voteType] || 0) + 1;
+      return { ...vc, [clipId]: next };
+    });
+  }
 
   async function toggleFeatured(clip) {
     const nextFeatured = !clip.featured;
@@ -300,7 +313,7 @@ export default function ClipGrid({ clips: initialClips, voteCounts, unratedPosit
         ) : (
           <div className="grid gap-[2px] grid-cols-4">
             {sortedClips.map((clip) =>
-              renderClipTile(clip, { voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured: toggleFeatured })
+              renderClipTile(clip, { voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured: toggleFeatured, onVoteChange: handleVoteChange })
             )}
           </div>
         )
@@ -311,7 +324,7 @@ export default function ClipGrid({ clips: initialClips, voteCounts, unratedPosit
               <div className="font-mono text-[11px] opacity-50 mb-1.5">Featured</div>
               <div className="grid gap-[2px] grid-cols-4">
                 {featuredSection.map((clip) =>
-                  renderClipTile(clip, { voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured: toggleFeatured })
+                  renderClipTile(clip, { voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured: toggleFeatured, onVoteChange: handleVoteChange })
                 )}
               </div>
             </div>
@@ -326,7 +339,7 @@ export default function ClipGrid({ clips: initialClips, voteCounts, unratedPosit
               </div>
               <div className="grid gap-[2px] grid-cols-4">
                 {section.clips.map((clip) =>
-                  renderClipTile(clip, { voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured: toggleFeatured })
+                  renderClipTile(clip, { voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured: toggleFeatured, onVoteChange: handleVoteChange })
                 )}
               </div>
             </div>
@@ -354,7 +367,7 @@ export default function ClipGrid({ clips: initialClips, voteCounts, unratedPosit
   );
 }
 
-function renderClipTile(clip, { voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured }) {
+function renderClipTile(clip, { voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured, onVoteChange }) {
   const counts = voteCounts[clip.id] || { UP: 0, DOWN: 0 };
   const total = counts.UP + counts.DOWN;
   const unrated = total === 0;
@@ -372,11 +385,12 @@ function renderClipTile(clip, { voteCounts, featuredClipId, search, expandedId, 
       setExpandedId={setExpandedId}
       isAdmin={isAdmin}
       onToggleFeatured={onToggleFeatured}
+      onVoteChange={onVoteChange}
     />
   );
 }
 
-function ClipTile({ clip, counts, unrated, thumb, isNewClip, isFeatured, isExpanded, setExpandedId, isAdmin, onToggleFeatured }) {
+function ClipTile({ clip, counts, unrated, thumb, isNewClip, isFeatured, isExpanded, setExpandedId, isAdmin, onToggleFeatured, onVoteChange }) {
   // Desktop-only hover preview — unrelated to mobile tap/hold logic below.
   const [hovering, setHovering] = useState(false);
   const [showDots, setShowDots] = useState(false);
@@ -576,7 +590,7 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isFeatured, isExpan
 
       {isExpanded && (
         <>
-          <VotePanel clipId={clip.id} initialCounts={counts} insetPercent={5} size="small" />
+          <VotePanel clipId={clip.id} initialCounts={counts} insetPercent={5} size="small" onVoteChange={onVoteChange} />
           <button
             type="button"
             onTouchStart={(e) => e.stopPropagation()}
