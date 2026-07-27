@@ -1,16 +1,17 @@
 # RECAP
 
 ## Task
-1. Find a clip whose title is a raw-looking alphanumeric string approximately matching "DTsstEskRsy" (case-insensitive, exact casing uncertain). If exactly one match, rename its title to "Body Lock Takedown" and keep its category unchanged. If more than one or no match, report what was found.
-2. Find the clip titled "openmat" (case-insensitive) and set its category to "Top Game".
+In [components/ClipGrid.jsx](components/ClipGrid.jsx), update `sortClipsForCategorySection` to use three tiers instead of two:
+1. Tier 1 (top) — positive net score (UP*2 - DOWN*1 > 0), sorted by score descending, newest as tiebreak.
+2. Tier 2 (middle) — no votes at all, sorted by `extractPrimaryKeyword` alphabetically, newest first within the same keyword (existing logic, unchanged).
+3. Tier 3 (bottom) — net score 0 or negative but at least one vote (DOWN > 0), sorted by score ascending (worst at the very bottom), newest as tiebreak.
+
+`sortClipsForDisplay` (flat search view) and vote counting/storage were left untouched — only the category-section sort order changed.
 
 ## What was done
+Rewrote `sortClipsForCategorySection` in [components/ClipGrid.jsx](components/ClipGrid.jsx#L106-L149) to bucket each clip into one of three tiers based on vote counts and net score, sort each tier independently, and concatenate them in order (tier 1, tier 2, tier 3). Previously downvoted clips with a non-positive score fell into the same "everything else" bucket as unrated clips and were sorted alphabetically alongside them; now they form their own bottom tier sorted by ascending score, so a heavily downvoted clip sinks below the unrated middle tier instead of being interleaved with it.
 
-### Part 1 — Rename
-Searched all clips for raw-looking (no-space, alphanumeric) titles and ranked them by edit distance to "DTsstEskRsy". Found exactly one exact case-insensitive match, `id=6056f33a-ad73-4c2a-b425-782f6a4bb6b4`, title `"DTsstEskRsy"`, category `Standup` — unambiguous (next-closest candidate was 9 edits away). Renamed its title to **"Body Lock Takedown"**; category left untouched at `Standup`.
-
-### Part 2 — Categorize
-Found exactly one clip titled "openmat" (`id=a905d279-05f3-4010-ba31-a5fa8b306f42`), previously `Uncategorized`. Updated its category to **"Top Game"**.
+Ran `npm run build` — compiled successfully, all 19 routes generated with no errors.
 
 ## Result
-Both operations succeeded with unambiguous single matches. The "Uncategorized" category is now empty — every clip has a category.
+Committed as `3355fce` ("feat: split category section sort into three vote-score tiers") and pushed to `origin/main`.
