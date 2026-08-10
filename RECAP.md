@@ -27,3 +27,25 @@ Each clip's download/upload/update ran in its own try/catch (10-way concurrency)
 
 ## Bottom line
 All 545 previously-Supabase-hosted thumbnails are now served from `cdn.oldmantriesbjj.com` (R2). 0 clips remain pointing at Supabase Storage for thumbnails, and 0 migrations failed. The script (`scripts/migrate-thumbnails-to-r2.js`) is idempotent and safe to re-run if needed — it always re-queries for whatever still matches `%supabase.co%`, so it would simply find nothing to do on a re-run right now.
+
+---
+
+# RECAP 2 — 2026-08-10
+
+## Task
+Fix "back to grid" losing scroll position and search state when navigating from the clip detail page back to the homepage grid, across [app/clip/[id]/page.js](app/clip/[id]/page.js) and [components/ClipGrid.jsx](components/ClipGrid.jsx).
+
+## What was done
+**Search state moved into the URL** ([components/ClipGrid.jsx](components/ClipGrid.jsx)): the search box's text is now read from and synced to a `?q=` query parameter via `useSearchParams`/`useRouter`/`usePathname` (`next/navigation`), instead of living only in local `useState`. Typing in the box calls `router.replace(...)` with `{ scroll: false }` so it updates the URL without jumping the page. Because the homepage (`app/page.js`) already sets `export const dynamic = "force-dynamic"`, no `<Suspense>` boundary was needed around `useSearchParams`.
+
+**Native autocomplete dropdown removed** ([components/ClipGrid.jsx](components/ClipGrid.jsx)): dropped the `list="clip-word-list"` attribute on the search `<input>`, the `<datalist id="clip-word-list">` block, and the `wordList` `useMemo` that fed it — the browser no longer shows its own suggestion popup over the search box.
+
+**"Back to grid" link now preserves scroll position** ([components/BackToGridLink.jsx](components/BackToGridLink.jsx), new file): added a small client component that calls `router.back()` on click instead of rendering a plain `<Link href="/">`, so returning to the grid restores the browser's scroll position (and, combined with the URL-synced search above, the active search) instead of landing on a fresh top-of-page load. [app/clip/[id]/page.js](app/clip/[id]/page.js) now renders `<BackToGridLink />` in place of the old `Link`, with the visible text changed from "← back to grid" to just "back" (same `font-mono text-xs opacity-70 hover:opacity-100` styling).
+
+Left untouched: `excludedSet`/`excludedWords` in ClipGrid — its only prior consumer was the removed `wordList`, but the task scope named only `wordList` for removal, so it was kept as-is rather than pulling on that thread further.
+
+## Verification
+`npm run build` passed cleanly: `✓ Compiled successfully`, all 18 routes generated with no errors or warnings.
+
+## Bottom line
+Search text now lives in the URL (`?q=`) rather than component-local state, the browser's native autocomplete dropdown on the search box is gone, and the clip detail page's back link uses `router.back()` (and reads "back") so scroll position and search state both survive a round trip to a clip and back. Build verified green; changes committed and pushed to `main` (commit `6e0d6d7`).
