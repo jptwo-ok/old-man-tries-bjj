@@ -6,6 +6,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import VotePanel from "@/components/VotePanel";
 import { supabasePublic } from "@/lib/supabase";
 import { getVoterCookie } from "@/lib/voterCookie";
+import { CATEGORY_ORDER, STOPWORDS, groupClipsByCategory, sortClipsForCategorySection } from "@/lib/clipSort";
 
 function thumbUrl(clip) {
   return clip.thumbnail_url || null;
@@ -39,9 +40,6 @@ function sortClipsForDisplay(clipsToSort, voteCounts, unratedPosition) {
   return unratedPosition === "bottom" ? [...rated, ...unrated] : [...unrated, ...rated];
 }
 
-const CATEGORY_ORDER = ["Standup", "Guard Pass", "Top Game", "Bottom Game", "Leg Game"];
-const UNCATEGORIZED = "Uncategorized";
-
 // Kebab-case anchor id for a category section (e.g. "Guard Pass" -> "guard-pass"),
 // used so the homepage "Jump to:" nav links can scroll to the right section.
 function categoryToId(category) {
@@ -68,87 +66,15 @@ function sortFeaturedClips(clipsToSort, voteCounts) {
   return result;
 }
 
-// Buckets clips into fixed-order category sections (anything not in
-// CATEGORY_ORDER — including the literal "Uncategorized" default — falls
-// into a final "Uncategorized" bucket). Empty buckets are dropped.
-function groupClipsByCategory(clipsToGroup) {
-  const buckets = new Map([...CATEGORY_ORDER, UNCATEGORIZED].map((cat) => [cat, []]));
-  for (const clip of clipsToGroup) {
-    const bucket = buckets.has(clip.category) ? clip.category : UNCATEGORIZED;
-    buckets.get(bucket).push(clip);
-  }
-  return [...buckets.entries()]
-    .map(([category, clips]) => ({ category, clips }))
-    .filter((section) => section.clips.length > 0);
-}
-
-const STOPWORDS = new Set([
-  "a", "an", "the", "to", "of", "in", "on", "at", "for", "and", "or", "but",
-  "with", "from", "by", "is", "are", "was", "were", "be", "been", "this",
-  "that", "these", "those", "it", "its", "as", "into", "than", "then",
-  "over", "under", "up", "down", "out", "off", "no", "not", "so", "if",
-  "when", "while", "your", "you", "i", "my", "vs", "you're",
-]);
-
-// First word of a title that isn't a stopword — used to group unrated
-// clips by rough subject in sortClipsForCategorySection below.
-function extractPrimaryKeyword(title) {
-  const rawWords = (title || "").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
-  return rawWords.find((w) => !STOPWORDS.has(w)) || "";
-}
-
-// Three-tier sort used only for the grouped/category view:
-// Tier 1 — clips with a positive net score (UP*2 - DOWN*1 > 0), ranked by
-// score descending, newest as tiebreak. Tier 2 — clips with no votes at all,
-// alphabetized by primary subject keyword, newest first within the same
-// keyword. Tier 3 — clips with at least one vote but a non-positive net
-// score, ranked by score ascending (worst at the very bottom), newest as
-// tiebreak. Render order is tier 1, tier 2, tier 3. (sortClipsForDisplay is
-// unchanged and still drives the flat search view.)
-function sortClipsForCategorySection(clipsToSort, voteCounts) {
-  const scoreOf = (c) => {
-    const v = voteCounts[c.id] || { UP: 0, DOWN: 0 };
-    return v.UP * 2 - v.DOWN * 1;
-  };
-
-  const tier1 = [];
-  const tier2 = [];
-  const tier3 = [];
-  for (const clip of clipsToSort) {
-    const v = voteCounts[clip.id] || { UP: 0, DOWN: 0 };
-    if (scoreOf(clip) > 0) {
-      tier1.push(clip);
-    } else if (v.UP === 0 && v.DOWN === 0) {
-      tier2.push(clip);
-    } else {
-      tier3.push(clip);
-    }
-  }
-
-  tier1.sort((a, b) => {
-    const diff = scoreOf(b) - scoreOf(a);
-    return diff !== 0 ? diff : new Date(b.added_at) - new Date(a.added_at);
-  });
-
-  tier2.sort((a, b) => {
-    const kwDiff = extractPrimaryKeyword(a.title).localeCompare(extractPrimaryKeyword(b.title));
-    return kwDiff !== 0 ? kwDiff : new Date(b.added_at) - new Date(a.added_at);
-  });
-
-  tier3.sort((a, b) => {
-    const diff = scoreOf(a) - scoreOf(b);
-    return diff !== 0 ? diff : new Date(b.added_at) - new Date(a.added_at);
-  });
-
-  return [...tier1, ...tier2, ...tier3];
-}
-
 // How long (ms) a finger has to stay down before it counts as a long-press
 // (navigate to the clip's own page) instead of a tap (expand in place).
 const LONG_PRESS_MS = 450;
 // If the finger moves more than this many px before release, treat it as a
 // scroll, not a tap or a hold — cancels both behaviors.
 const MOVE_CANCEL_PX = 10;
+// Minimum horizontal distance (px) for a release to count as a swipe
+// (rather than a scroll) on an expanded tile.
+const SWIPE_THRESHOLD_PX = 50;
 
 export default function ClipGrid({ clips: initialClips, voteCounts: initialVoteCounts, unratedPosition = "top", featuredClipId = null, excludedWords = [], isAdmin = false }) {
   const router = useRouter();
@@ -261,24 +187,27 @@ export default function ClipGrid({ clips: initialClips, voteCounts: initialVoteC
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-2 gap-3">
-        <nav className="flex items-baseline gap-x-2 font-mono text-[10px] whitespace-nowrap overflow-x-auto min-w-0">
-          <span className="opacity-50">Jump to:</span>
+      <div className="mb-2">
+        <div className="flex items-center justify-between gap-3">
+          <span className="font-mono text-[10px] opacity-50">Jump to:</span>
+          <button
+            onClick={() => setSearchOpen((o) => !o)}
+            aria-label="Search techniques"
+            className="w-7 h-7 flex items-center justify-center border border-line rounded-md hover:border-chalk shrink-0"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="7" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </button>
+        </div>
+        <nav className="flex flex-wrap gap-x-2 gap-y-1 font-mono text-[10px] mt-1">
+          <a href="#standup" className="underline opacity-60 hover:opacity-100">Standup</a>
           <a href="#guard-pass" className="underline opacity-60 hover:opacity-100">Guard Pass</a>
           <a href="#top-game" className="underline opacity-60 hover:opacity-100">Top Game</a>
           <a href="#bottom-game" className="underline opacity-60 hover:opacity-100">Bottom Game</a>
           <a href="#leg-game" className="underline opacity-60 hover:opacity-100">Leg Game</a>
         </nav>
-        <button
-          onClick={() => setSearchOpen((o) => !o)}
-          aria-label="Search techniques"
-          className="w-7 h-7 flex items-center justify-center border border-line rounded-md hover:border-chalk shrink-0"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="11" cy="11" r="7" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-        </button>
       </div>
 
       <div className="flex items-center justify-between mb-2 gap-3">
@@ -309,7 +238,7 @@ export default function ClipGrid({ clips: initialClips, voteCounts: initialVoteC
         ) : (
           <div className="grid gap-[2px] grid-cols-4">
             {sortedClips.map((clip) =>
-              renderClipTile(clip, { voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured: toggleFeatured, onVoteChange: handleVoteChange })
+              renderClipTile(clip, { clipList: sortedClips, voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured: toggleFeatured, onVoteChange: handleVoteChange })
             )}
           </div>
         )
@@ -320,7 +249,7 @@ export default function ClipGrid({ clips: initialClips, voteCounts: initialVoteC
               <div className="font-mono text-[11px] opacity-50 mb-1.5">Featured</div>
               <div className="grid gap-[2px] grid-cols-4">
                 {featuredSection.map((clip) =>
-                  renderClipTile(clip, { voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured: toggleFeatured, onVoteChange: handleVoteChange })
+                  renderClipTile(clip, { clipList: featuredSection, voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured: toggleFeatured, onVoteChange: handleVoteChange })
                 )}
               </div>
             </div>
@@ -335,7 +264,7 @@ export default function ClipGrid({ clips: initialClips, voteCounts: initialVoteC
               </div>
               <div className="grid gap-[2px] grid-cols-4">
                 {section.clips.map((clip) =>
-                  renderClipTile(clip, { voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured: toggleFeatured, onVoteChange: handleVoteChange })
+                  renderClipTile(clip, { clipList: section.clips, voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured: toggleFeatured, onVoteChange: handleVoteChange })
                 )}
               </div>
             </div>
@@ -363,7 +292,7 @@ export default function ClipGrid({ clips: initialClips, voteCounts: initialVoteC
   );
 }
 
-function renderClipTile(clip, { voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured, onVoteChange }) {
+function renderClipTile(clip, { clipList, voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured, onVoteChange }) {
   const counts = voteCounts[clip.id] || { UP: 0, DOWN: 0 };
   const total = counts.UP + counts.DOWN;
   const unrated = total === 0;
@@ -372,6 +301,7 @@ function renderClipTile(clip, { voteCounts, featuredClipId, search, expandedId, 
     <ClipTile
       key={clip.id}
       clip={clip}
+      clipList={clipList}
       counts={counts}
       unrated={unrated}
       thumb={thumb}
@@ -386,7 +316,7 @@ function renderClipTile(clip, { voteCounts, featuredClipId, search, expandedId, 
   );
 }
 
-function ClipTile({ clip, counts, unrated, thumb, isNewClip, isFeatured, isExpanded, setExpandedId, isAdmin, onToggleFeatured, onVoteChange }) {
+function ClipTile({ clip, clipList, counts, unrated, thumb, isNewClip, isFeatured, isExpanded, setExpandedId, isAdmin, onToggleFeatured, onVoteChange }) {
   // Desktop-only hover preview — unrelated to mobile tap/hold logic below.
   const [hovering, setHovering] = useState(false);
   const [showDots, setShowDots] = useState(false);
@@ -502,7 +432,23 @@ function ClipTile({ clip, counts, unrated, thumb, isNewClip, isFeatured, isExpan
     }
 
     if (movedRef.current) {
-      // Finger moved — this was a scroll, not a tap. Do nothing.
+      // Finger moved — normally this means "scroll, not a tap", but on an
+      // expanded tile a horizontal drag can also be a swipe to the next/
+      // previous clip in this section's list. Diagonal/vertical drags and
+      // drags on a collapsed tile still fall through as a no-op scroll.
+      if (isExpanded && clipList) {
+        const t = e.changedTouches[0];
+        const dx = t.clientX - touchStartPos.current.x;
+        const dy = t.clientY - touchStartPos.current.y;
+        if (Math.abs(dx) >= SWIPE_THRESHOLD_PX && Math.abs(dx) > Math.abs(dy)) {
+          const index = clipList.findIndex((c) => c.id === clip.id);
+          const target = dx < 0 ? clipList[index + 1] : clipList[index - 1];
+          if (index !== -1 && target) {
+            e.preventDefault();
+            setExpandedId(target.id);
+          }
+        }
+      }
       return;
     }
 
