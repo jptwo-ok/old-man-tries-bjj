@@ -1,6 +1,6 @@
 import { supabasePublic, supabaseAdmin } from "@/lib/supabase";
 import VotePanel from "@/components/VotePanel";
-import Link from "next/link";
+import BackToGridLink from "@/components/BackToGridLink";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -25,9 +25,7 @@ export default async function ClipPage({ params }) {
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-8">
-      <Link href="/" className="font-mono text-xs opacity-70 hover:opacity-100">
-        ← back to grid
-      </Link>
+      <BackToGridLink />
 
       <h1 className="font-display text-xl font-semibold mt-4">{clip.title}</h1>
       <p className="font-mono text-xs opacity-60 mt-1">

@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import VotePanel from "@/components/VotePanel";
 import { supabasePublic } from "@/lib/supabase";
 import { getVoterCookie } from "@/lib/voterCookie";
@@ -151,10 +151,28 @@ const LONG_PRESS_MS = 450;
 const MOVE_CANCEL_PX = 10;
 
 export default function ClipGrid({ clips: initialClips, voteCounts: initialVoteCounts, unratedPosition = "top", featuredClipId = null, excludedWords = [], isAdmin = false }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [clips, setClips] = useState(initialClips);
   const [voteCounts, setVoteCounts] = useState(initialVoteCounts);
-  const [search, setSearch] = useState("");
+  const [search, setSearchState] = useState(() => searchParams.get("q") || "");
   const [searchOpen, setSearchOpen] = useState(false);
+
+  // Keeps the search box in sync with the URL (?q=) so a search survives
+  // navigation away and back (e.g. via the clip detail page's back button).
+  function setSearch(value) {
+    setSearchState(value);
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) {
+      params.set("q", value);
+    } else {
+      params.delete("q");
+    }
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }
   // Only one tile can be expanded (mobile tap-to-expand) at a time.
   const [expandedId, setExpandedId] = useState(null);
 
@@ -196,22 +214,6 @@ export default function ClipGrid({ clips: initialClips, voteCounts: initialVoteC
     }
     return set;
   }, [excludedWords]);
-
-  const wordList = useMemo(() => {
-    const phrases = new Set();
-    for (const clip of clips) {
-      const rawWords = (clip.title || "").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
-      const words = rawWords.filter((w) => !excludedSet.has(w));
-
-      for (const w of words) phrases.add(w);
-
-      for (let i = 0; i < rawWords.length - 1; i++) {
-        if (excludedSet.has(rawWords[i]) || excludedSet.has(rawWords[i + 1])) continue;
-        phrases.add(`${rawWords[i]} ${rawWords[i + 1]}`);
-      }
-    }
-    return [...phrases].sort();
-  }, [clips, excludedSet]);
 
   const searchedClips = useMemo(() => {
     if (!search.trim()) return clips;
@@ -292,18 +294,12 @@ export default function ClipGrid({ clips: initialClips, voteCounts: initialVoteC
       {searchOpen && (
         <div className="mb-4">
           <input
-            list="clip-word-list"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search techniques..."
             autoFocus
             className="w-full bg-transparent border border-line rounded-md px-3 py-2 text-sm font-mono outline-none focus:border-chalk"
           />
-          <datalist id="clip-word-list">
-            {wordList.map((w) => (
-              <option key={w} value={w} />
-            ))}
-          </datalist>
         </div>
       )}
 
