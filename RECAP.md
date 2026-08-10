@@ -49,3 +49,27 @@ Left untouched: `excludedSet`/`excludedWords` in ClipGrid — its only prior con
 
 ## Bottom line
 Search text now lives in the URL (`?q=`) rather than component-local state, the browser's native autocomplete dropdown on the search box is gone, and the clip detail page's back link uses `router.back()` (and reads "back") so scroll position and search state both survive a round trip to a clip and back. Build verified green; changes committed and pushed to `main` (commit `6e0d6d7`).
+
+---
+
+# RECAP 3 — 2026-08-10
+
+## Task
+Two changes across [components/ClipGrid.jsx](components/ClipGrid.jsx) and [app/clip/[id]/page.js](app/clip/[id]/page.js): (1) restructure the homepage's "Jump to" nav to bring back the Standup link and wrap on narrow screens instead of scrolling sideways, and (2) add left/right swipe navigation between clips, both on an expanded grid tile and on the standalone clip detail page.
+
+## What was done
+
+**Part 1 — "Jump to" nav restructure** ([components/ClipGrid.jsx](components/ClipGrid.jsx)): "Standup" is back as the first jump link (order: Standup, Guard Pass, Top Game, Bottom Game, Leg Game) — it had been dropped earlier when Standup was the first section on the page, but the Featured section can now render above it, so `#top` no longer lands on Standup. The "Jump to:" label now sits on its own row, with the links below it in a `flex flex-wrap` container instead of the old `whitespace-nowrap overflow-x-auto` row, so they wrap naturally on a narrow phone instead of needing a sideways scroll. The search icon button moved to sit next to the "Jump to:" label on that first row, out of the way of the wrapping links.
+
+**Part 2 — swipe navigation between clips**, added purely on top of existing tap/long-press behavior (all unchanged):
+
+- *Expanded grid tile* ([components/ClipGrid.jsx](components/ClipGrid.jsx)): each `renderClipTile` call site now also passes `clipList` — the exact ordered array already being `.map()`-ed for that section (search results, the Featured section, or a given category section's sorted clips) — down into `ClipTile`. The tile's existing `handleTouchEnd` already distinguished "moved" (scroll) from "not moved" (tap); it now also checks, only when `isExpanded` and the finger moved, whether the release was a horizontal swipe of at least 50px and more horizontal than vertical. If so it looks up the current clip's neighbor in `clipList` and calls `setExpandedId(neighbor.id)` — keeping the tile expanded and switching to the adjacent clip. At either end of the list (no neighbor) swiping does nothing; no wraparound.
+- *Clip detail page* ([app/clip/[id]/page.js](app/clip/[id]/page.js)): added `getNeighbors()`, which fetches all non-hidden clips and all votes, builds the same `voteCounts` shape the homepage uses, and reuses `groupClipsByCategory` + `sortClipsForCategorySection` (both extracted to the new [lib/clipSort.js](lib/clipSort.js), see below) to flatten clips into the identical category-grouped, three-tier-sorted order as the homepage's default view. It finds the current clip's index in that order and returns `prevId`/`nextId` (either `null` at an end, or if the current clip isn't in the non-hidden list). The page now renders its content inside a new [components/ClipSwipeNav.jsx](components/ClipSwipeNav.jsx) client component, which detects the same left/right swipe (≥50px, horizontal-dominant) and calls `router.push` to `/clip/{nextId}` or `/clip/{prevId}` — a client-side navigation, not a full reload. No wraparound past either end.
+
+**Shared sort logic extracted** ([lib/clipSort.js](lib/clipSort.js), new file): `CATEGORY_ORDER`, `UNCATEGORIZED`, `STOPWORDS`, `extractPrimaryKeyword`, `sortClipsForCategorySection`, and `groupClipsByCategory` moved out of `ClipGrid.jsx` into this shared module — this was necessary so the server-rendered detail page could compute the identical ordering without duplicating (and risking drift from) the homepage's sort logic. `ClipGrid.jsx` now imports them from there instead of defining them locally; `categoryToId` and the featured-only `sortFeaturedClips`/`sortClipsForDisplay` stayed in `ClipGrid.jsx` since only it needs them.
+
+## Verification
+`npm run build` passed cleanly: `✓ Compiled successfully`, all 18 routes generated, no errors. Also smoke-tested with `npm run dev`: homepage returned HTTP 200, and a real clip detail page (`/clip/8100ceb8-...`) returned HTTP 200 and rendered the "back" link as expected.
+
+## Bottom line
+The "Jump to" nav now includes Standup again and wraps cleanly on narrow phones instead of scrolling sideways. Swiping left/right now moves between clips both on an expanded grid tile (staying expanded, same section order, no wraparound) and on the standalone clip page (client-side navigation via the homepage's own category-sorted order, no wraparound). Build verified green; changes committed and pushed to `main` (commit `0f71b2f`).
