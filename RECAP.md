@@ -99,3 +99,33 @@ Bot filtering only affects page views recorded **going forward** — it does not
 
 ## Bottom line
 `page_views` inserts on both the homepage and clip detail page now skip known bots/crawlers/link-previews (or missing UAs) via a shared `lib/isBot.js`, verified live against Supabase. Desktop users can now also navigate between clips with the left/right arrow keys or by clicking edge chevrons, on both an expanded grid tile and the standalone clip page — mirroring the existing mobile swipe gesture exactly, with no wraparound past either end and zero changes to the existing touch-swipe code in either file. Build verified green; changes committed and pushed to `main` (commit `2e81a5f`).
+
+---
+
+# RECAP 5 — 2026-08-10
+
+## Task
+Change bot/crawler handling in `page_views` from dropping the row entirely to tagging it (the table already has an `is_bot` boolean column, added directly in Supabase), surface both the raw and bot-filtered totals on the admin dashboard, and (re-)add desktop-only keyboard/click navigation between clips — mobile touch swipe must stay completely unchanged.
+
+## What was done
+
+**Parts 1, 5, 6 — already in place from prior work**: before touching anything, I re-read [lib/isBot.js](lib/isBot.js), [components/ClipSwipeNav.jsx](components/ClipSwipeNav.jsx), and [components/ClipGrid.jsx](components/ClipGrid.jsx) and confirmed all three already matched this task's spec exactly — the single-regex `isBot()` helper, the `ClipSwipeNav` keydown listener + `hidden md:flex` chevrons calling `router.push`, and `ClipGrid`'s `goToNeighbor()` helper + keydown listener + chevrons calling `setExpandedId`, all from the previous session's work. No changes were needed or made to any of these three files or to the existing touch/swipe handlers in either component.
+
+**Verified the `is_bot` column** exists in Supabase (`page_views.is_bot`, boolean, default `false`) before wiring code to it, rather than assuming — confirmed via a direct query returning sample rows and matching total/`is_bot=false` counts.
+
+**Part 2 & 3 — tag instead of drop** ([app/page.js](app/page.js), [app/clip/[id]/page.js](app/clip/[id]/page.js)): replaced the previous `if (!isBot(userAgent)) { insert }` (which skipped the row for bots) with an unconditional insert that always runs, now including `is_bot: isBot(userAgent)` in the inserted row. Every request is recorded again; only the flag differs.
+
+**Part 4 — dashboard split** ([app/admin/(protected)/page.js](app/admin/(protected)/page.js)): added a `realViews` query (`page_views` count where `is_bot = false`) alongside the existing unfiltered `totalViews` count, and added a third stat card, "real visitors (bot-filtered)", into what was a 2-column grid (now 3 columns) next to the existing "total page views" card — same `border border-line rounded-md p-4 text-center` / `text-2xl` + `opacity-60 text-xs` styling as every other stat card on the dashboard, no new visual pattern introduced.
+
+## Verification
+`npm run build` passed cleanly, all 18 routes generated, no errors. Then verified live against Supabase and the running admin dashboard (not just code review):
+- Confirmed `is_bot` column and existing data (11091 rows, all `is_bot = false` before this change).
+- Logged into `/admin` as admin and confirmed the dashboard rendered three view-count cards, with "real visitors (bot-filtered)" showing the same value as "total page views" (since no bot-tagged rows existed yet).
+- Hit the homepage with a Googlebot user-agent: total went 11091 → 11092 (row **was** inserted, unlike the old drop behavior) while `is_bot = false` stayed at 11091, and the newest row was confirmed `is_bot: true`.
+- Hit the homepage with a normal Chrome user-agent: total → 11093, `is_bot = false` → 11092 — both counters move together for real traffic.
+
+## Note on existing data
+`is_bot` tagging only affects rows recorded **going forward**. Every row already in `page_views` (from before this change, including from before the previous session's drop-based bot filtering existed at all) defaults to `is_bot = false` and is not retroactively reclassified — those older rows are not a reliable signal of real vs. bot traffic, only rows inserted after this change are.
+
+## Bottom line
+Bot/crawler/link-preview traffic (and missing UAs) is now tagged (`is_bot = true`) rather than dropped, so raw request volume in `page_views` is preserved while still being filterable. The admin dashboard shows both the unfiltered "total page views" and the new "real visitors (bot-filtered)" count side by side. Desktop keyboard-arrow and click-chevron navigation between clips remains in place (verified already correct from prior work, unchanged here) on both the grid and detail page, and mobile touch/swipe logic in both files was not modified. Build verified green; changes committed and pushed to `main` (commit `41ed8db`).
