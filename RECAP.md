@@ -73,3 +73,29 @@ Two changes across [components/ClipGrid.jsx](components/ClipGrid.jsx) and [app/c
 
 ## Bottom line
 The "Jump to" nav now includes Standup again and wraps cleanly on narrow phones instead of scrolling sideways. Swiping left/right now moves between clips both on an expanded grid tile (staying expanded, same section order, no wraparound) and on the standalone clip page (client-side navigation via the homepage's own category-sorted order, no wraparound). Build verified green; changes committed and pushed to `main` (commit `0f71b2f`).
+
+---
+
+# RECAP 4 — 2026-08-10
+
+## Task
+Two changes: (1) filter bot/crawler traffic out of `page_views` tracking on the homepage and clip detail page, and (2) add desktop-only keyboard-arrow and click-chevron navigation between clips — matching the existing mobile swipe behavior — on both the expanded grid tile and the standalone clip detail page.
+
+## What was done
+
+**Part 1 — bot detection** ([lib/isBot.js](lib/isBot.js), new file): exports `isBot(userAgent)`, which tests the UA against a single case-insensitive regex covering the requested bot/crawler/link-preview signatures (search engine bots, social-platform link unfurlers like `facebookexternalhit`/`slackbot`/`discordbot`/`whatsapp`/`telegrambot`/`twitterbot`/`linkedinbot`/`embedly`/`quora link preview`/`pinterest`/`vkshare`, validators/monitors like `w3c_validator`/`uptimerobot`/`pingdom`, SEO crawlers like `ahrefsbot`/`semrushbot`/`mj12bot`/`dotbot`/`petalbot`/`bytespider`, and headless browsers `headlesschrome`/`phantomjs`), plus a generic `bot|crawler|spider` catch-all. A missing/empty user-agent also returns `true`, since real browsers always send one.
+
+**Parts 2 & 3 — applied in both page-view sites**: [app/page.js](app/page.js) and [app/clip/[id]/page.js](app/clip/[id]/page.js) now read the request's user-agent via `headers().get("user-agent")` (`next/headers`) and only run their existing `page_views` insert when `!isBot(userAgent)`. Nothing else about either insert changed.
+
+**Part 4 — desktop nav on the clip detail page** ([components/ClipSwipeNav.jsx](components/ClipSwipeNav.jsx)): added a `useEffect` that attaches a `window` `keydown` listener — `ArrowRight` calls `router.push` to `nextId` (if set), `ArrowLeft` to `prevId` (if set) — plus two `fixed`, vertically-centered chevron buttons (left/right edges of the viewport, `hidden md:flex` so they never show on mobile) that call the same navigation on click. Each button only renders when its corresponding `prevId`/`nextId` exists, so there's nothing to click at either end of the list. The existing touch-swipe `handleTouchStart`/`handleTouchEnd` logic was not touched.
+
+**Part 5 — desktop nav on expanded grid tiles** ([components/ClipGrid.jsx](components/ClipGrid.jsx)): added a new `goToNeighbor(direction)` helper inside `ClipTile` that performs the same `clipList` index lookup the touch-swipe handler already does inline, then a `keydown`-listening `useEffect` (active only while `isExpanded`) that calls it for `ArrowRight`/`ArrowLeft`, plus two `hidden md:flex` chevron buttons absolutely positioned on the tile's left/right edges (styled and gated — `stopPropagation`/`preventDefault` — the same way the existing open-clip-page and unmute buttons are) that call `goToNeighbor` on click and only render when a `prevClip`/`nextClip` exists. The existing `handleTouchStart`/`handleTouchMove`/`handleTouchEnd` swipe block was left byte-for-byte unchanged — `goToNeighbor` is new code that duplicates its lookup rather than refactoring it, per the requirement to keep existing touch/swipe logic completely untouched.
+
+## Verification
+`npm run build` passed cleanly: all 18 routes generated, no errors. Smoke-tested with `npm run dev`: homepage and a real clip detail page both returned HTTP 200. Bot filtering was verified end-to-end against the live Supabase `page_views` table (not just code review) — starting count 11090: a request with a Googlebot user-agent left the count at 11090 (insert skipped), then a request with a normal Chrome user-agent bumped it to 11091 (insert ran normally).
+
+## Note on existing data
+Bot filtering only affects page views recorded **going forward** — it does not retroactively clean up or backfill the `page_views` rows already in the table from before this change, some of which are presumably bot traffic recorded under the old unfiltered logic.
+
+## Bottom line
+`page_views` inserts on both the homepage and clip detail page now skip known bots/crawlers/link-previews (or missing UAs) via a shared `lib/isBot.js`, verified live against Supabase. Desktop users can now also navigate between clips with the left/right arrow keys or by clicking edge chevrons, on both an expanded grid tile and the standalone clip page — mirroring the existing mobile swipe gesture exactly, with no wraparound past either end and zero changes to the existing touch-swipe code in either file. Build verified green; changes committed and pushed to `main` (commit `2e81a5f`).
