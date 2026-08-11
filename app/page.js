@@ -42,7 +42,7 @@ export default async function HomePage() {
         <p className="font-mono text-sm opacity-70">
           {copy.handle || "@OldManTriesBJJ"} ·{" "}
           <a href="https://jiujitsu.net" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-100">
-            oldmantriesbjj.com
+            jiujitsu.net
           </a>
         </p>
         <ColoredBio text={copy.bio} className="max-w-lg text-sm leading-relaxed opacity-90" />
