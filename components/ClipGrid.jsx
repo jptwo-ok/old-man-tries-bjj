@@ -671,16 +671,6 @@ function ClipTile({ clip, clipList, counts, unrated, thumb, isNewClip, isFeature
         </>
       )}
 
-      {hovering && !isExpanded && clip.video_url && (
-        <div className="hover-only absolute bottom-1.5 inset-x-0 justify-center pointer-events-none">
-          <span
-            className="font-mono text-[11px] font-semibold tracking-wide text-chalk px-3 py-1 rounded-full bg-black/80"
-          >
-            click to vote
-          </span>
-        </div>
-      )}
-
       {(isNewClip || isFeatured) && !isExpanded && (
         <span className="absolute top-1 left-1 font-mono text-[9px] bg-chalk text-mat px-1 rounded-sm tracking-wide">
           NEW
