@@ -54,9 +54,7 @@ export default async function ClipPage({ params }) {
   if (!clip) notFound();
 
   const userAgent = headers().get("user-agent");
-  if (!isBot(userAgent)) {
-    await supabaseAdmin().from("page_views").insert({ path: `clip:${params.id}` });
-  }
+  await supabaseAdmin().from("page_views").insert({ path: `clip:${params.id}`, is_bot: isBot(userAgent) });
 
   const counts = { UP: 0, DOWN: 0 };
   for (const v of votes) counts[v.vote_type]++;

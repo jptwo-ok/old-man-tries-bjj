@@ -27,9 +27,7 @@ export default async function HomePage() {
   const { clips, votes, copy } = await getData();
 
   const userAgent = headers().get("user-agent");
-  if (!isBot(userAgent)) {
-    await supabaseAdmin().from("page_views").insert({ path: "home" });
-  }
+  await supabaseAdmin().from("page_views").insert({ path: "home", is_bot: isBot(userAgent) });
 
   const voteCounts = {};
   for (const v of votes) {

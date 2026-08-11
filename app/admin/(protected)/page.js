@@ -2,12 +2,13 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 async function getStats() {
   const supabase = supabaseAdmin();
-  const [{ count: clipCount }, { count: voteCount }, { count: commentCount }, { count: totalViews }, { count: homeViews }, { count: hoverCount }, { data: hoverRows }, { data: clipViewRows }, { data: voteRows }, { data: clips }] =
+  const [{ count: clipCount }, { count: voteCount }, { count: commentCount }, { count: totalViews }, { count: realViews }, { count: homeViews }, { count: hoverCount }, { data: hoverRows }, { data: clipViewRows }, { data: voteRows }, { data: clips }] =
     await Promise.all([
       supabase.from("clips").select("*", { count: "exact", head: true }),
       supabase.from("votes").select("*", { count: "exact", head: true }),
       supabase.from("comments").select("*", { count: "exact", head: true }),
       supabase.from("page_views").select("*", { count: "exact", head: true }),
+      supabase.from("page_views").select("*", { count: "exact", head: true }).eq("is_bot", false),
       supabase.from("page_views").select("*", { count: "exact", head: true }).eq("path", "home"),
       supabase.from("hover_events").select("*", { count: "exact", head: true }),
       supabase.from("hover_events").select("voter_cookie, clip_id, duration_ms"),
@@ -56,6 +57,7 @@ async function getStats() {
     voteCount: voteCount || 0,
     commentCount: commentCount || 0,
     totalViews: totalViews || 0,
+    realViews: realViews || 0,
     homeViews: homeViews || 0,
     topClips,
     hoverStats: {
@@ -68,7 +70,7 @@ async function getStats() {
 }
 
 export default async function AdminDashboard() {
-  const { clipCount, voteCount, commentCount, totalViews, homeViews, topClips, hoverStats } = await getStats();
+  const { clipCount, voteCount, commentCount, totalViews, realViews, homeViews, topClips, hoverStats } = await getStats();
 
   return (
     <div>
@@ -108,10 +110,14 @@ export default async function AdminDashboard() {
           </div>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3 font-mono text-sm mb-6">
+      <div className="grid grid-cols-3 gap-3 font-mono text-sm mb-6">
         <div className="border border-line rounded-md p-4 text-center">
           <div className="text-2xl">{totalViews}</div>
           <div className="opacity-60 text-xs mt-1">total page views</div>
+        </div>
+        <div className="border border-line rounded-md p-4 text-center">
+          <div className="text-2xl">{realViews}</div>
+          <div className="opacity-60 text-xs mt-1">real visitors (bot-filtered)</div>
         </div>
         <div className="border border-line rounded-md p-4 text-center">
           <div className="text-2xl">{homeViews}</div>
