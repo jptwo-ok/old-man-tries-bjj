@@ -161,3 +161,19 @@ Wrapped the single `<a href="https://ko-fi.com/oldmantriesbjj" ...>Buy me a coff
 
 ## Bottom line
 The Ko-fi "Buy me a coffee" link no longer renders but remains in the source, commented out, ready to be restored by removing the `{/* */}` wrapper. Build verified green; changes committed and pushed to `main` (commit `87ff1e4`).
+
+---
+
+# RECAP 8 — 2026-08-11
+
+## Task
+In [app/page.js](app/page.js), turn the "oldmantriesbjj.com" text in the handle line into a link to https://jiujitsu.net, opening in a new tab, keeping the rest of the line unchanged.
+
+## What was done
+Changed the single `<p>` line so `{copy.handle || "@OldManTriesBJJ"} ·` stays as plain text, followed by "oldmantriesbjj.com" now wrapped in `<a href="https://jiujitsu.net" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-100">`. No other lines in the file were touched.
+
+## Verification
+`npm run build` passed cleanly — all 18 routes generated, no errors.
+
+## Bottom line
+"oldmantriesbjj.com" in the homepage handle line is now a clickable link that opens https://jiujitsu.net in a new tab; note the link text still reads "oldmantriesbjj.com" while pointing to a different domain, as explicitly specified in the request. Nothing else in `page.js` changed. Build verified green; changes committed and pushed to `main` (commit `9dcfb79`).
