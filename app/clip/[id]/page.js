@@ -22,7 +22,11 @@ async function getClip(id) {
 
 // Same category-grouped, three-tier-sorted order as the homepage's default
 // (no-search) grid view, flattened so swipe can step to the next/previous
-// clip in that order.
+// clip in that order. Featured clips are excluded from this flattening, same
+// as ClipGrid.jsx's groupedSections, so they're never reachable via swipe at
+// their old category position. A consequence: a Featured clip's own detail
+// page will have no prev/next neighbors at all (it's no longer part of this
+// flow) — same as how a hidden clip's detail page already has none today.
 async function getNeighbors(currentId) {
   const supabase = supabasePublic();
   const [{ data: clips }, { data: allVotes }] = await Promise.all([
@@ -36,7 +40,8 @@ async function getNeighbors(currentId) {
     voteCounts[v.clip_id][v.vote_type]++;
   }
 
-  const ordered = groupClipsByCategory(clips || []).flatMap((section) =>
+  const nonFeatured = (clips || []).filter((clip) => !clip.featured);
+  const ordered = groupClipsByCategory(nonFeatured).flatMap((section) =>
     sortClipsForCategorySection(section.clips, voteCounts)
   );
   const index = ordered.findIndex((c) => c.id === currentId);
