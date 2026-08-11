@@ -282,3 +282,22 @@ Restore the "Featured" star toggle so it's also reachable on the expanded grid t
 
 ## Bottom line
 Admins can now toggle a clip's Featured status from an expanded grid tile, not just the collapsed one, via a star in the top-left corner. The toggle logic itself now lives in one shared, reusable component instead of being duplicated — matching the same optimistic-PATCH-with-silent-rollback shape as the admin boost control. Scope was deliberately narrowed from an earlier draft: no tap-target-size change on the collapsed star, no clip-detail-page instance — both confirmed as out of scope for this task. Build verified green; changes committed and pushed to `main` (commit `268b88f`).
+
+---
+
+# RECAP 14 — 2026-08-11
+
+## Task
+Exclude Featured clips from their normal category section — consistently, in both places that build category-grouped clip order — so a Featured clip only ever appears once (in the Featured section), never duplicated into or reachable via its old category, on either the homepage grid or the clip detail page's swipe order. Search results were explicitly required to stay unaffected. Went through a review round first (written to `REVIEW.md` at the repo root per this round's explicit request, committed and pushed on its own before any code changed) that caught a real bug in the originally-proposed Part 2: filtering the *currently-viewed* clip out of its own neighbor list before the position lookup would make `getNeighbors` return `{ prevId: null, nextId: null }` for every Featured clip's own detail page — silently killing all swipe/arrow-key/chevron navigation there. The user confirmed that exact outcome (a Featured clip's own page has no prev/next neighbors) as the intended, accepted behavior, consistent with how a hidden clip's detail page already behaves today, so Part 2 was implemented exactly as originally written.
+
+## What was done
+
+**Part 1** ([components/ClipGrid.jsx](components/ClipGrid.jsx)): `groupedSections` now filters `searchedClips` down to `!clip.featured` before calling `groupClipsByCategory`, so a Featured clip's category section (e.g. Standup) no longer includes it — it only appears in the `featuredSection` block above. `sortedClips` and the `hasActiveSearch` render branch were left untouched, since that flat view is already built straight from `searchedClips`, independent of `groupedSections` — confirmed by re-reading the render tree, so a Featured clip still shows up normally when it matches a search term.
+
+**Part 2** ([app/clip/[id]/page.js](app/clip/%5Bid%5D/page.js)): `getNeighbors` now filters `clips` down to `!clip.featured` before the same `groupClipsByCategory(...).flatMap(...)` flattening used for swipe order, mirroring Part 1. Updated the function's doc comment to state the exclusion explicitly and note its consequence — a Featured clip's own detail page has no prev/next neighbors at all, since it's no longer part of the flattened category flow. Confirmed via the existing hidden-clip behavior in this same function (its `clips` query already filters `.eq("hidden", false)`, so a hidden clip has always had no swipe neighbors on its own page) that `ordered.findIndex(...) === -1` falling through to `{ prevId: null, nextId: null }` was already an established, gracefully-handled pattern here, not a new failure mode — and `ClipSwipeNav.jsx` already no-ops/hides its chevrons when `prevId`/`nextId` are `null`, so nothing further needed changing there.
+
+## Verification
+`npm run build` passed cleanly — all 18 routes generated, no errors.
+
+## Bottom line
+A Featured clip now appears exactly once across the whole site: in the Featured section on the grid, and nowhere else — not duplicated into its category section, and not reachable by swiping through that category's clips on the detail page either. The one accepted trade-off is that a Featured clip's own detail page has no swipe/arrow-key/chevron navigation, matching how a hidden clip's detail page already behaves. Build verified green; changes committed and pushed to `main` (commit `c5dc904`). The standalone review from this task is preserved at `REVIEW.md` in the repo root (commit `cd2ebde`).
