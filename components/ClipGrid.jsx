@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import VotePanel from "@/components/VotePanel";
 import AdminBoostControl from "@/components/AdminBoostControl";
+import FeaturedToggle from "@/components/FeaturedToggle";
 import { supabasePublic } from "@/lib/supabase";
 import { getVoterCookie } from "@/lib/voterCookie";
 import { CATEGORY_ORDER, STOPWORDS, groupClipsByCategory, sortClipsForCategorySection, scoreOf } from "@/lib/clipSort";
@@ -135,21 +136,11 @@ export default function ClipGrid({ clips: initialClips, voteCounts: initialVoteC
     });
   }
 
-  async function toggleFeatured(clip) {
-    const nextFeatured = !clip.featured;
-    setClips((cs) => cs.map((c) => (c.id === clip.id ? { ...c, featured: nextFeatured } : c)));
-
-    const res = await fetch("/api/admin/clips", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: clip.id, featured: nextFeatured }),
-    });
-
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setClips((cs) => cs.map((c) => (c.id === clip.id ? { ...c, featured: !nextFeatured } : c)));
-      alert(`Error: ${data.error || "Could not update featured status"}`);
-    }
+  // FeaturedToggle owns the optimistic PATCH + rollback itself (mirroring
+  // AdminBoostControl); this is just a plain setter keeping clips state in
+  // sync, same shape as handleBoostChange.
+  function handleFeaturedChange(clipId, newFeatured) {
+    setClips((cs) => cs.map((c) => (c.id === clipId ? { ...c, featured: newFeatured } : c)));
   }
 
   // Admin boost/negate is a deliberate one-off correction, not organic
@@ -268,7 +259,7 @@ export default function ClipGrid({ clips: initialClips, voteCounts: initialVoteC
         ) : (
           <div className="grid gap-[2px] grid-cols-4">
             {sortedClips.map((clip) =>
-              renderClipTile(clip, { clipList: sortedClips, voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured: toggleFeatured, onVoteChange: handleVoteChange, onBoostChange: handleBoostChange })
+              renderClipTile(clip, { clipList: sortedClips, voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onFeaturedChange: handleFeaturedChange, onVoteChange: handleVoteChange, onBoostChange: handleBoostChange })
             )}
           </div>
         )
@@ -279,7 +270,7 @@ export default function ClipGrid({ clips: initialClips, voteCounts: initialVoteC
               <div className="font-mono text-[11px] opacity-50 mb-1.5">Featured</div>
               <div className="grid gap-[2px] grid-cols-4">
                 {featuredSection.map((clip) =>
-                  renderClipTile(clip, { clipList: featuredSection, voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured: toggleFeatured, onVoteChange: handleVoteChange, onBoostChange: handleBoostChange })
+                  renderClipTile(clip, { clipList: featuredSection, voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onFeaturedChange: handleFeaturedChange, onVoteChange: handleVoteChange, onBoostChange: handleBoostChange })
                 )}
               </div>
             </div>
@@ -294,7 +285,7 @@ export default function ClipGrid({ clips: initialClips, voteCounts: initialVoteC
               </div>
               <div className="grid gap-[2px] grid-cols-4">
                 {section.clips.map((clip) =>
-                  renderClipTile(clip, { clipList: section.clips, voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured: toggleFeatured, onVoteChange: handleVoteChange, onBoostChange: handleBoostChange })
+                  renderClipTile(clip, { clipList: section.clips, voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onFeaturedChange: handleFeaturedChange, onVoteChange: handleVoteChange, onBoostChange: handleBoostChange })
                 )}
               </div>
             </div>
@@ -322,7 +313,7 @@ export default function ClipGrid({ clips: initialClips, voteCounts: initialVoteC
   );
 }
 
-function renderClipTile(clip, { clipList, voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured, onVoteChange, onBoostChange }) {
+function renderClipTile(clip, { clipList, voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onFeaturedChange, onVoteChange, onBoostChange }) {
   const counts = voteCounts[clip.id] || { UP: 0, DOWN: 0 };
   const total = counts.UP + counts.DOWN;
   const unrated = total === 0;
@@ -340,14 +331,14 @@ function renderClipTile(clip, { clipList, voteCounts, featuredClipId, search, ex
       isExpanded={expandedId === clip.id}
       setExpandedId={setExpandedId}
       isAdmin={isAdmin}
-      onToggleFeatured={onToggleFeatured}
+      onFeaturedChange={onFeaturedChange}
       onVoteChange={onVoteChange}
       onBoostChange={onBoostChange}
     />
   );
 }
 
-function ClipTile({ clip, clipList, counts, unrated, thumb, isNewClip, isFeatured, isExpanded, setExpandedId, isAdmin, onToggleFeatured, onVoteChange, onBoostChange }) {
+function ClipTile({ clip, clipList, counts, unrated, thumb, isNewClip, isFeatured, isExpanded, setExpandedId, isAdmin, onFeaturedChange, onVoteChange, onBoostChange }) {
   // Desktop-only hover preview — unrelated to mobile tap/hold logic below.
   const [hovering, setHovering] = useState(false);
   const [showDots, setShowDots] = useState(false);
@@ -634,6 +625,14 @@ function ClipTile({ clip, clipList, counts, unrated, thumb, isNewClip, isFeature
           {isAdmin && (
             <AdminBoostControl clipId={clip.id} initialBoost={clip.admin_boost || 0} onBoostChange={onBoostChange} />
           )}
+          {isAdmin && (
+            <FeaturedToggle
+              clipId={clip.id}
+              initialFeatured={clip.featured}
+              onFeaturedChange={onFeaturedChange}
+              className="absolute top-3 left-3 z-10 pointer-events-auto rounded-full bg-black/70 p-2 text-chalk hover:bg-black/90"
+            />
+          )}
           {prevClip && (
             <button
               type="button"
@@ -712,31 +711,13 @@ function ClipTile({ clip, clipList, counts, unrated, thumb, isNewClip, isFeature
       )}
 
       {isAdmin && !isExpanded && (
-        <button
-          type="button"
-          onTouchStart={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            onToggleFeatured(clip);
-          }}
-          aria-label={clip.featured ? "Remove from Featured" : "Add to Featured"}
+        <FeaturedToggle
+          clipId={clip.id}
+          initialFeatured={clip.featured}
+          onFeaturedChange={onFeaturedChange}
           className="absolute top-1 right-1 z-10 pointer-events-auto"
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill={clip.featured ? "white" : "none"}
-            stroke="white"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.8))" }}
-          >
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-          </svg>
-        </button>
+          size={14}
+        />
       )}
 
       {thumb && !hovering && !isExpanded && (
