@@ -177,3 +177,19 @@ Changed the single `<p>` line so `{copy.handle || "@OldManTriesBJJ"} ·` stays a
 
 ## Bottom line
 "oldmantriesbjj.com" in the homepage handle line is now a clickable link that opens https://jiujitsu.net in a new tab; note the link text still reads "oldmantriesbjj.com" while pointing to a different domain, as explicitly specified in the request. Nothing else in `page.js` changed. Build verified green; changes committed and pushed to `main` (commit `9dcfb79`).
+
+---
+
+# RECAP 9 — 2026-08-11
+
+## Task
+In [app/page.js](app/page.js), change the link text from "oldmantriesbjj.com" to "jiujitsu.net" so the visible text matches the `https://jiujitsu.net` destination it already links to.
+
+## What was done
+Changed only the text node inside the existing `<a href="https://jiujitsu.net" ...>` element, from "oldmantriesbjj.com" to "jiujitsu.net". No other lines in the file were touched.
+
+## Verification
+`npm run build` passed cleanly — all 18 routes generated, no errors.
+
+## Bottom line
+The homepage handle line's link now reads "jiujitsu.net" and points to `https://jiujitsu.net`, resolving the text/destination mismatch introduced in RECAP 8. Build verified green; changes committed and pushed to `main` (commit `f323e92`).
