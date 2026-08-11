@@ -193,3 +193,25 @@ Changed only the text node inside the existing `<a href="https://jiujitsu.net" .
 
 ## Bottom line
 The homepage handle line's link now reads "jiujitsu.net" and points to `https://jiujitsu.net`, resolving the text/destination mismatch introduced in RECAP 8. Build verified green; changes committed and pushed to `main` (commit `f323e92`).
+
+---
+
+# RECAP 10 — 2026-08-11
+
+## Task
+In [components/ClipGrid.jsx](components/ClipGrid.jsx), decouple vote-count display from grid sort order: a vote's count should update immediately, but the grid should only reorder once the user's attention moves to a different clip (a vote or expand/swipe/navigate on that different clip) — not merely from scrolling away or collapsing a tile back to the grid.
+
+## What was done
+Added a frozen sort snapshot, `sortVoteCounts` (`useState(initialVoteCounts)`), plus `activeClipIdRef` (`useRef(null)`) tracking which clip the user is currently "on". Added `commitSortIfClipChanged(clipId)`, which — only when `clipId` differs from `activeClipIdRef.current` — copies the current live `voteCounts` into `sortVoteCounts` (finalizing wherever the previously-active clip's score landed) and updates the ref to the new clip.
+
+`commitSortIfClipChanged` is called from two places:
+- At the very start of `handleVoteChange(clipId, ...)`, before the count update is applied — so a vote on a new clip commits the previous clip's position first, then the new clip becomes active (frozen in place through its own subsequent vote changes).
+- In a new `useEffect` keyed on `expandedId` that calls `commitSortIfClipChanged(expandedId)` only when `expandedId` is non-null — this fires on expand-by-click and on swipe/arrow-key/chevron navigation to a different clip (all of which change `expandedId` to a new id), but not on collapse (`expandedId` going to `null`), so collapsing back to the grid alone never triggers a resort.
+
+The three `useMemo` sort computations — `sortedClips`, `groupedSections`, `featuredSection` — were switched from reading `voteCounts` to reading `sortVoteCounts`, with `sortVoteCounts` replacing `voteCounts` in their dependency arrays. Every other use of `voteCounts` was left untouched: the live count passed as the `counts` prop into each tile (and on into `ClipTile`/`VotePanel`) and `handleVoteChange`'s own count-update logic (`setVoteCounts`) still update instantly on every vote, exactly as before.
+
+## Verification
+`npm run build` passed cleanly — all 18 routes generated, no errors.
+
+## Bottom line
+Voting on a clip now bumps its displayed count instantly without moving it in the grid; the grid only re-sorts once the user votes on, expands, or swipes/arrow-keys/chevron-navigates to a *different* clip, at which point the previous clip's final tally is committed into sort order. Scrolling away or collapsing a tile back to the grid, on its own, never triggers a reorder. Build verified green; changes committed and pushed to `main` (commit `090ae9a`).
