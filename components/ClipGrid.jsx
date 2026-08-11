@@ -83,6 +83,11 @@ export default function ClipGrid({ clips: initialClips, voteCounts: initialVoteC
 
   const [clips, setClips] = useState(initialClips);
   const [voteCounts, setVoteCounts] = useState(initialVoteCounts);
+  // Frozen snapshot of vote counts used only for sort order, so a vote's
+  // count updates live but the grid doesn't reorder until the user moves
+  // on to a different clip (see commitSortIfClipChanged below).
+  const [sortVoteCounts, setSortVoteCounts] = useState(initialVoteCounts);
+  const activeClipIdRef = useRef(null);
   const [search, setSearchState] = useState(() => searchParams.get("q") || "");
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -102,9 +107,28 @@ export default function ClipGrid({ clips: initialClips, voteCounts: initialVoteC
   // Only one tile can be expanded (mobile tap-to-expand) at a time.
   const [expandedId, setExpandedId] = useState(null);
 
+  // Commits the live voteCounts into the frozen sortVoteCounts (finalizing
+  // wherever the previously-active clip landed) whenever attention moves to
+  // a new clip, then marks clipId as the new active clip.
+  function commitSortIfClipChanged(clipId) {
+    if (clipId !== activeClipIdRef.current) {
+      setSortVoteCounts(voteCounts);
+      activeClipIdRef.current = clipId;
+    }
+  }
+
+  // Commits the previous clip's sort position whenever the user expands or
+  // navigates to a different clip. Collapsing back to the grid (expandedId
+  // -> null) does not run this, so that alone never triggers a resort.
+  useEffect(() => {
+    if (expandedId != null) commitSortIfClipChanged(expandedId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expandedId]);
+
   // Mirrors VotePanel's own optimistic update so the tile's local vote
   // display and ClipGrid's sort order never disagree about the count.
   function handleVoteChange(clipId, voteType, prevVote) {
+    commitSortIfClipChanged(clipId);
     setVoteCounts((vc) => {
       const current = vc[clipId] || { UP: 0, DOWN: 0 };
       const next = { ...current };
@@ -151,7 +175,7 @@ export default function ClipGrid({ clips: initialClips, voteCounts: initialVoteC
 
   // Flat, ungrouped, featured-pinned list — used only while a search is active.
   const sortedClips = useMemo(() => {
-    const sorted = sortClipsForDisplay(searchedClips, voteCounts, unratedPosition);
+    const sorted = sortClipsForDisplay(searchedClips, sortVoteCounts, unratedPosition);
 
     if (hasActiveSearch || !featuredClipId) return sorted;
 
@@ -159,23 +183,23 @@ export default function ClipGrid({ clips: initialClips, voteCounts: initialVoteC
     if (!featuredClip) return sorted;
 
     return [featuredClip, ...sorted.filter((clip) => clip.id !== featuredClip.id)];
-  }, [featuredClipId, searchedClips, hasActiveSearch, voteCounts, unratedPosition]);
+  }, [featuredClipId, searchedClips, hasActiveSearch, sortVoteCounts, unratedPosition]);
 
   // Grouped-by-category sections — used for the default (no search) view.
   // Each section is sorted independently with the two-tier keyword sort.
   const groupedSections = useMemo(() => {
     return groupClipsByCategory(searchedClips).map((section) => ({
       category: section.category,
-      clips: sortClipsForCategorySection(section.clips, voteCounts),
+      clips: sortClipsForCategorySection(section.clips, sortVoteCounts),
     }));
-  }, [searchedClips, voteCounts]);
+  }, [searchedClips, sortVoteCounts]);
 
   // Manually-curated Featured section — shown above Standup in the grouped
   // view, ordered by category then by the usual vote-score logic.
   const featuredSection = useMemo(() => {
     const featured = searchedClips.filter((clip) => clip.featured);
-    return featured.length > 0 ? sortFeaturedClips(featured, voteCounts) : [];
-  }, [searchedClips, voteCounts]);
+    return featured.length > 0 ? sortFeaturedClips(featured, sortVoteCounts) : [];
+  }, [searchedClips, sortVoteCounts]);
 
   if (clips.length === 0) {
     return (
