@@ -4,9 +4,10 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import VotePanel from "@/components/VotePanel";
+import AdminBoostControl from "@/components/AdminBoostControl";
 import { supabasePublic } from "@/lib/supabase";
 import { getVoterCookie } from "@/lib/voterCookie";
-import { CATEGORY_ORDER, STOPWORDS, groupClipsByCategory, sortClipsForCategorySection } from "@/lib/clipSort";
+import { CATEGORY_ORDER, STOPWORDS, groupClipsByCategory, sortClipsForCategorySection, scoreOf } from "@/lib/clipSort";
 
 function thumbUrl(clip) {
   return clip.thumbnail_url || null;
@@ -25,14 +26,10 @@ function sortClipsForDisplay(clipsToSort, voteCounts, unratedPosition) {
   for (const clip of clipsToSort) {
     const c = voteCounts[clip.id];
     const total = c ? c.UP + c.DOWN : 0;
-    (total === 0 ? unrated : rated).push(clip);
+    (total === 0 && (clip.admin_boost || 0) === 0 ? unrated : rated).push(clip);
   }
   rated.sort((a, b) => {
-    const scoreOf = (c) => {
-      const v = voteCounts[c.id] || { UP: 0, DOWN: 0 };
-      return v.UP * 2 - v.DOWN * 1;
-    };
-    const diff = scoreOf(b) - scoreOf(a);
+    const diff = scoreOf(b, voteCounts) - scoreOf(a, voteCounts);
     return diff !== 0 ? diff : new Date(b.added_at) - new Date(a.added_at);
   });
   unrated.sort((a, b) => new Date(b.added_at) - new Date(a.added_at));
@@ -155,6 +152,15 @@ export default function ClipGrid({ clips: initialClips, voteCounts: initialVoteC
     }
   }
 
+  // Admin boost/negate is a deliberate one-off correction, not organic
+  // voting — so unlike handleVoteChange it resorts the grid instantly and
+  // never goes through the vote-freeze mechanism (sortVoteCounts/
+  // activeClipIdRef) above. AdminBoostControl always hands up the absolute
+  // new value, so this is a plain setter, not a diff.
+  function handleBoostChange(clipId, newBoost) {
+    setClips((cs) => cs.map((c) => (c.id === clipId ? { ...c, admin_boost: newBoost } : c)));
+  }
+
   const excludedSet = useMemo(() => {
     const set = new Set(STOPWORDS);
     for (const entry of excludedWords) {
@@ -262,7 +268,7 @@ export default function ClipGrid({ clips: initialClips, voteCounts: initialVoteC
         ) : (
           <div className="grid gap-[2px] grid-cols-4">
             {sortedClips.map((clip) =>
-              renderClipTile(clip, { clipList: sortedClips, voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured: toggleFeatured, onVoteChange: handleVoteChange })
+              renderClipTile(clip, { clipList: sortedClips, voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured: toggleFeatured, onVoteChange: handleVoteChange, onBoostChange: handleBoostChange })
             )}
           </div>
         )
@@ -273,7 +279,7 @@ export default function ClipGrid({ clips: initialClips, voteCounts: initialVoteC
               <div className="font-mono text-[11px] opacity-50 mb-1.5">Featured</div>
               <div className="grid gap-[2px] grid-cols-4">
                 {featuredSection.map((clip) =>
-                  renderClipTile(clip, { clipList: featuredSection, voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured: toggleFeatured, onVoteChange: handleVoteChange })
+                  renderClipTile(clip, { clipList: featuredSection, voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured: toggleFeatured, onVoteChange: handleVoteChange, onBoostChange: handleBoostChange })
                 )}
               </div>
             </div>
@@ -288,7 +294,7 @@ export default function ClipGrid({ clips: initialClips, voteCounts: initialVoteC
               </div>
               <div className="grid gap-[2px] grid-cols-4">
                 {section.clips.map((clip) =>
-                  renderClipTile(clip, { clipList: section.clips, voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured: toggleFeatured, onVoteChange: handleVoteChange })
+                  renderClipTile(clip, { clipList: section.clips, voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured: toggleFeatured, onVoteChange: handleVoteChange, onBoostChange: handleBoostChange })
                 )}
               </div>
             </div>
@@ -316,7 +322,7 @@ export default function ClipGrid({ clips: initialClips, voteCounts: initialVoteC
   );
 }
 
-function renderClipTile(clip, { clipList, voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured, onVoteChange }) {
+function renderClipTile(clip, { clipList, voteCounts, featuredClipId, search, expandedId, setExpandedId, isAdmin, onToggleFeatured, onVoteChange, onBoostChange }) {
   const counts = voteCounts[clip.id] || { UP: 0, DOWN: 0 };
   const total = counts.UP + counts.DOWN;
   const unrated = total === 0;
@@ -336,11 +342,12 @@ function renderClipTile(clip, { clipList, voteCounts, featuredClipId, search, ex
       isAdmin={isAdmin}
       onToggleFeatured={onToggleFeatured}
       onVoteChange={onVoteChange}
+      onBoostChange={onBoostChange}
     />
   );
 }
 
-function ClipTile({ clip, clipList, counts, unrated, thumb, isNewClip, isFeatured, isExpanded, setExpandedId, isAdmin, onToggleFeatured, onVoteChange }) {
+function ClipTile({ clip, clipList, counts, unrated, thumb, isNewClip, isFeatured, isExpanded, setExpandedId, isAdmin, onToggleFeatured, onVoteChange, onBoostChange }) {
   // Desktop-only hover preview — unrelated to mobile tap/hold logic below.
   const [hovering, setHovering] = useState(false);
   const [showDots, setShowDots] = useState(false);
@@ -624,6 +631,9 @@ function ClipTile({ clip, clipList, counts, unrated, thumb, isNewClip, isFeature
       {isExpanded && (
         <>
           <VotePanel clipId={clip.id} initialCounts={counts} insetPercent={5} size="small" onVoteChange={onVoteChange} />
+          {isAdmin && (
+            <AdminBoostControl clipId={clip.id} initialBoost={clip.admin_boost || 0} onBoostChange={onBoostChange} />
+          )}
           {prevClip && (
             <button
               type="button"

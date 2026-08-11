@@ -1,10 +1,12 @@
 import { headers } from "next/headers";
 import { supabasePublic, supabaseAdmin } from "@/lib/supabase";
 import VotePanel from "@/components/VotePanel";
+import AdminBoostControl from "@/components/AdminBoostControl";
 import BackToGridLink from "@/components/BackToGridLink";
 import ClipSwipeNav from "@/components/ClipSwipeNav";
 import { groupClipsByCategory, sortClipsForCategorySection } from "@/lib/clipSort";
 import { isBot } from "@/lib/isBot";
+import { isAdmin } from "@/lib/adminAuth";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -85,6 +87,9 @@ export default async function ClipPage({ params }) {
             </div>
           )}
           <VotePanel clipId={clip.id} initialCounts={counts} />
+          {isAdmin() && (
+            <AdminBoostControl clipId={clip.id} initialBoost={clip.admin_boost || 0} />
+          )}
         </div>
       </main>
     </ClipSwipeNav>
