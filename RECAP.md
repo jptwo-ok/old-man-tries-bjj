@@ -145,3 +145,19 @@ Removed the entire conditional overlay block from [components/ClipGrid.jsx](comp
 
 ## Bottom line
 The "click to vote" hover badge no longer renders on grid tiles. Nothing else in `ClipGrid.jsx` changed. Build verified green; changes committed and pushed to `main` (commit `213adaf`).
+
+---
+
+# RECAP 7 — 2026-08-11
+
+## Task
+Comment out the "Buy me a coffee" Ko-fi link in [components/ClipGrid.jsx](components/ClipGrid.jsx) without deleting it, so it stops rendering but stays in the file.
+
+## What was done
+Wrapped the single `<a href="https://ko-fi.com/oldmantriesbjj" ...>Buy me a coffee</a>` line in a JSX comment (`{/* ... */}`). No other lines in the file were touched.
+
+## Verification
+`npm run build` passed cleanly — all 18 routes generated, no errors.
+
+## Bottom line
+The Ko-fi "Buy me a coffee" link no longer renders but remains in the source, commented out, ready to be restored by removing the `{/* */}` wrapper. Build verified green; changes committed and pushed to `main` (commit `87ff1e4`).
