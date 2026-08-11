@@ -129,3 +129,19 @@ Change bot/crawler handling in `page_views` from dropping the row entirely to ta
 
 ## Bottom line
 Bot/crawler/link-preview traffic (and missing UAs) is now tagged (`is_bot = true`) rather than dropped, so raw request volume in `page_views` is preserved while still being filterable. The admin dashboard shows both the unfiltered "total page views" and the new "real visitors (bot-filtered)" count side by side. Desktop keyboard-arrow and click-chevron navigation between clips remains in place (verified already correct from prior work, unchanged here) on both the grid and detail page, and mobile touch/swipe logic in both files was not modified. Build verified green; changes committed and pushed to `main` (commit `41ed8db`).
+
+---
+
+# RECAP 6 — 2026-08-11
+
+## Task
+Remove the "click to vote" hover overlay from grid tiles on desktop.
+
+## What was done
+Removed the entire conditional overlay block from [components/ClipGrid.jsx](components/ClipGrid.jsx) — the `{hovering && !isExpanded && clip.video_url && (...)}` block rendering a `hover-only` positioned `<span>` reading "click to vote" over a tile on hover. This was a pure deletion: no other hover behavior, styling, or logic in the file (including the `hovering` state itself, which is still used elsewhere in the file) was touched.
+
+## Verification
+`npm run build` passed cleanly — all 18 routes generated, no errors.
+
+## Bottom line
+The "click to vote" hover badge no longer renders on grid tiles. Nothing else in `ClipGrid.jsx` changed. Build verified green; changes committed and pushed to `main` (commit `213adaf`).
