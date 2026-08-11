@@ -39,7 +39,12 @@ export default async function HomePage() {
     <main id="top" className="max-w-4xl mx-auto px-3 pt-8 pb-16">
       <header className="flex flex-col items-start text-left gap-2 mb-6">
         <h1 className="font-display text-2xl font-semibold tracking-wide">{copy.name || "Old Man Tries BJJ"}</h1>
-        <p className="font-mono text-sm opacity-70">{copy.handle || "@OldManTriesBJJ"} · oldmantriesbjj.com</p>
+        <p className="font-mono text-sm opacity-70">
+          {copy.handle || "@OldManTriesBJJ"} ·{" "}
+          <a href="https://jiujitsu.net" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-100">
+            oldmantriesbjj.com
+          </a>
+        </p>
         <ColoredBio text={copy.bio} className="max-w-lg text-sm leading-relaxed opacity-90" />
       </header>
 
