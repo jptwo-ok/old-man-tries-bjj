@@ -216,7 +216,7 @@ export default function ClipGrid({ clips: initialClips, voteCounts: initialVoteC
           <Link href="/about" className="font-mono text-[11px] underline opacity-60 hover:opacity-100">
             Contact
           </Link>
-          <a href="https://ko-fi.com/oldmantriesbjj" target="_blank" rel="noopener noreferrer" className="font-mono text-[11px] underline opacity-60 hover:opacity-100">Buy me a coffee</a>
+          {/* <a href="https://ko-fi.com/oldmantriesbjj" target="_blank" rel="noopener noreferrer" className="font-mono text-[11px] underline opacity-60 hover:opacity-100">Buy me a coffee</a> */}
         </div>
       </div>
 
