@@ -23,9 +23,9 @@ export default function ClipSwipeNav({ prevId, nextId, children }) {
     if (Math.abs(dx) < SWIPE_THRESHOLD_PX || Math.abs(dx) <= Math.abs(dy)) return;
 
     if (dx < 0 && nextId) {
-      router.push(`/clip/${nextId}`);
+      router.replace(`/clip/${nextId}`);
     } else if (dx > 0 && prevId) {
-      router.push(`/clip/${prevId}`);
+      router.replace(`/clip/${prevId}`);
     }
   }
 
@@ -33,9 +33,9 @@ export default function ClipSwipeNav({ prevId, nextId, children }) {
   useEffect(() => {
     function handleKeyDown(e) {
       if (e.key === "ArrowRight" && nextId) {
-        router.push(`/clip/${nextId}`);
+        router.replace(`/clip/${nextId}`);
       } else if (e.key === "ArrowLeft" && prevId) {
-        router.push(`/clip/${prevId}`);
+        router.replace(`/clip/${prevId}`);
       }
     }
     window.addEventListener("keydown", handleKeyDown);
@@ -47,7 +47,7 @@ export default function ClipSwipeNav({ prevId, nextId, children }) {
       {prevId && (
         <button
           type="button"
-          onClick={() => router.push(`/clip/${prevId}`)}
+          onClick={() => router.replace(`/clip/${prevId}`)}
           aria-label="Previous clip"
           className="hidden md:flex fixed left-4 top-1/2 -translate-y-1/2 z-10 items-center justify-center w-10 h-10 rounded-full bg-black/70 text-chalk hover:bg-black/90"
         >
@@ -59,7 +59,7 @@ export default function ClipSwipeNav({ prevId, nextId, children }) {
       {nextId && (
         <button
           type="button"
-          onClick={() => router.push(`/clip/${nextId}`)}
+          onClick={() => router.replace(`/clip/${nextId}`)}
           aria-label="Next clip"
           className="hidden md:flex fixed right-4 top-1/2 -translate-y-1/2 z-10 items-center justify-center w-10 h-10 rounded-full bg-black/70 text-chalk hover:bg-black/90"
         >
