@@ -380,6 +380,29 @@ function ClipTile({ clip, clipList, counts, unrated, thumb, isNewClip, isFeature
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isExpanded, hovering, clip.video_url]);
 
+  // Steps expandedId to the next/previous clip within this tile's rendered
+  // list (clipList) — shared by the desktop arrow-key and click-chevron nav
+  // below. Mirrors the index lookup the touch swipe handler performs inline.
+  function goToNeighbor(direction) {
+    if (!clipList) return;
+    const index = clipList.findIndex((c) => c.id === clip.id);
+    if (index === -1) return;
+    const target = direction === "next" ? clipList[index + 1] : clipList[index - 1];
+    if (target) setExpandedId(target.id);
+  }
+
+  // Desktop arrow-key navigation between clips while a tile is expanded.
+  useEffect(() => {
+    if (!isExpanded) return;
+    function handleKeyDown(e) {
+      if (e.key === "ArrowRight") goToNeighbor("next");
+      else if (e.key === "ArrowLeft") goToNeighbor("prev");
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isExpanded, clip.id, clipList]);
+
   function handleEnter() {
     setHovering(true);
     setShowDots(true);
@@ -502,6 +525,12 @@ function ClipTile({ clip, clipList, counts, unrated, thumb, isNewClip, isFeature
     recordHoverIfNeeded(duration);
   }
 
+  // Desktop click-chevron visibility — same neighbor lookup as goToNeighbor,
+  // computed here so the buttons can hide themselves at the start/end.
+  const clipIndex = clipList ? clipList.findIndex((c) => c.id === clip.id) : -1;
+  const prevClip = clipIndex > 0 ? clipList[clipIndex - 1] : null;
+  const nextClip = clipIndex !== -1 && clipList && clipIndex < clipList.length - 1 ? clipList[clipIndex + 1] : null;
+
   return (
     <>
       <style jsx global>{`
@@ -571,6 +600,40 @@ function ClipTile({ clip, clipList, counts, unrated, thumb, isNewClip, isFeature
       {isExpanded && (
         <>
           <VotePanel clipId={clip.id} initialCounts={counts} insetPercent={5} size="small" onVoteChange={onVoteChange} />
+          {prevClip && (
+            <button
+              type="button"
+              onTouchStart={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                goToNeighbor("prev");
+              }}
+              aria-label="Previous clip"
+              className="hidden md:flex absolute left-2 top-1/2 -translate-y-1/2 z-10 pointer-events-auto items-center justify-center w-8 h-8 rounded-full bg-black/70 text-chalk hover:bg-black/90"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+          )}
+          {nextClip && (
+            <button
+              type="button"
+              onTouchStart={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                goToNeighbor("next");
+              }}
+              aria-label="Next clip"
+              className="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 z-10 pointer-events-auto items-center justify-center w-8 h-8 rounded-full bg-black/70 text-chalk hover:bg-black/90"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          )}
           <button
             type="button"
             onTouchStart={(e) => e.stopPropagation()}

@@ -1,7 +1,9 @@
+import { headers } from "next/headers";
 import { supabasePublic, supabaseAdmin } from "@/lib/supabase";
 import ClipGrid from "@/components/ClipGrid";
 import ColoredBio from "@/components/ColoredBio";
 import { isAdmin } from "@/lib/adminAuth";
+import { isBot } from "@/lib/isBot";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +26,10 @@ async function getData() {
 export default async function HomePage() {
   const { clips, votes, copy } = await getData();
 
-  await supabaseAdmin().from("page_views").insert({ path: "home" });
+  const userAgent = headers().get("user-agent");
+  if (!isBot(userAgent)) {
+    await supabaseAdmin().from("page_views").insert({ path: "home" });
+  }
 
   const voteCounts = {};
   for (const v of votes) {

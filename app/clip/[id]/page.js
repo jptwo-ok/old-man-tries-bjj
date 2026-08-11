@@ -1,8 +1,10 @@
+import { headers } from "next/headers";
 import { supabasePublic, supabaseAdmin } from "@/lib/supabase";
 import VotePanel from "@/components/VotePanel";
 import BackToGridLink from "@/components/BackToGridLink";
 import ClipSwipeNav from "@/components/ClipSwipeNav";
 import { groupClipsByCategory, sortClipsForCategorySection } from "@/lib/clipSort";
+import { isBot } from "@/lib/isBot";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -51,7 +53,10 @@ export default async function ClipPage({ params }) {
   ]);
   if (!clip) notFound();
 
-  await supabaseAdmin().from("page_views").insert({ path: `clip:${params.id}` });
+  const userAgent = headers().get("user-agent");
+  if (!isBot(userAgent)) {
+    await supabaseAdmin().from("page_views").insert({ path: `clip:${params.id}` });
+  }
 
   const counts = { UP: 0, DOWN: 0 };
   for (const v of votes) counts[v.vote_type]++;
