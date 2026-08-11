@@ -241,3 +241,21 @@ This feature will not work until `admin_boost` actually exists on the `clips` ta
 
 ## Bottom line
 Admins can now nudge a clip's ranking up or down directly from its expanded grid tile or its detail page, via a small "− N +" control visible only when logged in as admin. The adjustment lives in its own `admin_boost` column, factored into the same shared `scoreOf` used everywhere score is computed, and never touches the `votes` table — so real visitor sentiment and manual admin corrections stay fully separable going forward. Boost changes resort the grid instantly; vote changes still respect the RECAP 10 freeze-until-you-move-on behavior — the two are deliberately independent. Build verified green; changes committed and pushed to `main` (commit `51a618f`). **Action needed:** run the `admin_boost` migration in Supabase for this to take effect in production.
+
+---
+
+# RECAP 12 — 2026-08-11
+
+## Task
+Fix the clip detail page's "back" button so it always returns directly to the main grid, regardless of how many clips were swiped/arrow-keyed/chevron-navigated through, without affecting the initial grid-to-clip navigation.
+
+## What was done
+In [components/ClipSwipeNav.jsx](components/ClipSwipeNav.jsx), changed all six `router.push(`/clip/${...}`)` calls to `router.replace(...)`: both directions in the touch-swipe handler (`handleTouchEnd`), both directions in the keyboard handler (`handleKeyDown`), and both desktop chevron buttons' `onClick` handlers. Pure navigation-method swap — no other logic touched.
+
+Root cause: [BackToGridLink.jsx](components/BackToGridLink.jsx)'s "back" button calls `router.back()`, which steps through browser history one entry at a time. Entering a clip from the grid does a single `push` (via `ClipTile`'s `<Link>`, in `ClipGrid.jsx` — untouched by this change), but every subsequent swipe/arrow/chevron move used to also `push`, adding one history entry per clip. Swiping through 4 clips left history as `[grid, clip1, clip2, clip3, clip4]`, so "back" only stepped to `clip3`. Switching those six calls to `replace` means each move overwrites the current history entry instead of adding a new one, so history stays `[grid, clipN]` no matter how many clips were browsed, and a single "back" tap now always lands on the grid.
+
+## Verification
+`npm run build` passed cleanly — all 18 routes generated, no errors.
+
+## Bottom line
+The clip detail page's "back" button now always returns directly to the grid in one tap, regardless of how much swiping/arrow-keying/chevron-clicking happened first; the initial grid→clip navigation is untouched. One accepted side effect: the browser's native forward button, after going back to the grid, now jumps straight to the last-viewed clip rather than stepping forward through each intermediate one — an inherent consequence of collapsing the history chain. Build verified green; changes committed and pushed to `main` (commit `9b40afe`).
