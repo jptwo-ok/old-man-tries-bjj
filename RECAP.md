@@ -259,3 +259,26 @@ Root cause: [BackToGridLink.jsx](components/BackToGridLink.jsx)'s "back" button 
 
 ## Bottom line
 The clip detail page's "back" button now always returns directly to the grid in one tap, regardless of how much swiping/arrow-keying/chevron-clicking happened first; the initial grid→clip navigation is untouched. One accepted side effect: the browser's native forward button, after going back to the grid, now jumps straight to the last-viewed clip rather than stepping forward through each intermediate one — an inherent consequence of collapsing the history chain. Build verified green; changes committed and pushed to `main` (commit `9b40afe`).
+
+---
+
+# RECAP 13 — 2026-08-11
+
+## Task
+Restore the "Featured" star toggle so it's also reachable on the expanded grid tile (previously it only rendered on the collapsed tile), and consolidate the inline star markup + `toggleFeatured` logic in `ClipGrid.jsx` into a shared component, mirroring RECAP 11's `AdminBoostControl` pattern. Explicitly scoped narrower than an earlier draft of this task: no bigger tap target on the collapsed star and no clip-detail-page instance — expanded-tile support plus the refactor only. Went through three rounds of plan review before implementation: the first caught that the original draft's Part 1 (bigger collapsed-tile tap target) and Part 3 (detail-page instance) got dropped between drafts, worth surfacing even though the user confirmed the narrower scope was intentional; a second round caught one real spec conflict — the plan fixed the icon at a hardcoded 16px while separately claiming the collapsed-tile instance would stay pixel-identical at 14px, which isn't possible without an explicit size prop.
+
+## What was done
+
+**New component** ([components/FeaturedToggle.jsx](components/FeaturedToggle.jsx)): takes `{ clipId, initialFeatured, onFeaturedChange, className, size = 16 }`. Renders the same star `<svg>` (filled white when featured, outline when not) previously inline in `ClipGrid.jsx`. Includes a `busy` lock and the same touch/click handling pattern as `AdminBoostControl`'s stepper buttons (`onTouchStart` stopPropagation + a shared `toggle` handler on both `onTouchEnd` and `onClick`). On click: optimistically flips the local `featured` state, calls `onFeaturedChange(clipId, newValue)` if provided, then PATCHes `/api/admin/clips` with the new `featured` value, rolling back both the local state and the `onFeaturedChange` call silently on failure — no `alert()`, replacing the previous inline `toggleFeatured`'s error-alert behavior to match `AdminBoostControl`'s established silent-rollback convention. `featured` was already in the PATCH route's `allowedFields`, so no API changes were needed.
+
+**Consolidation** (`ClipGrid.jsx`): removed the old `toggleFeatured` async function and the inline star `<button>`/`<svg>` markup entirely. Replaced with `handleFeaturedChange(clipId, newFeatured)` — a plain setter (`setClips` mapping the one clip's `featured` field), the same shape as RECAP 11's `handleBoostChange`, since `FeaturedToggle` now owns the PATCH/rollback itself. Threaded as `onFeaturedChange` through all three `renderClipTile` call sites, `renderClipTile`'s destructuring, and into `ClipTile`, replacing the old `onToggleFeatured` prop everywhere it appeared.
+
+**Two instances, two treatments:**
+- Collapsed tile (existing, `isAdmin && !isExpanded`): `<FeaturedToggle size={14} className="absolute top-1 right-1 z-10 pointer-events-auto" />` — pixel-identical position and size to the markup it replaced, confirmed via the explicit `size` prop added specifically to resolve the earlier draft's 14px-vs-16px conflict.
+- Expanded tile (new, `isAdmin`): `<FeaturedToggle className="absolute top-3 left-3 z-10 pointer-events-auto rounded-full bg-black/70 p-2 text-chalk hover:bg-black/90" />` (default `size=16`) — placed top-left, the one corner confirmed free of the open-page button (top-right), `AdminBoostControl` (bottom-right), and the conditional unmute-tap button (bottom-left).
+
+## Verification
+`npm run build` passed cleanly — all 18 routes generated, no errors.
+
+## Bottom line
+Admins can now toggle a clip's Featured status from an expanded grid tile, not just the collapsed one, via a star in the top-left corner. The toggle logic itself now lives in one shared, reusable component instead of being duplicated — matching the same optimistic-PATCH-with-silent-rollback shape as the admin boost control. Scope was deliberately narrowed from an earlier draft: no tap-target-size change on the collapsed star, no clip-detail-page instance — both confirmed as out of scope for this task. Build verified green; changes committed and pushed to `main` (commit `268b88f`).
