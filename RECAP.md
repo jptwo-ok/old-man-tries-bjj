@@ -301,3 +301,19 @@ Exclude Featured clips from their normal category section — consistently, in b
 
 ## Bottom line
 A Featured clip now appears exactly once across the whole site: in the Featured section on the grid, and nowhere else — not duplicated into its category section, and not reachable by swiping through that category's clips on the detail page either. The one accepted trade-off is that a Featured clip's own detail page has no swipe/arrow-key/chevron navigation, matching how a hidden clip's detail page already behaves. Build verified green; changes committed and pushed to `main` (commit `c5dc904`). The standalone review from this task is preserved at `REVIEW.md` in the repo root (commit `cd2ebde`).
+
+---
+
+# RECAP 15 — 2026-08-12
+
+## Task
+Fix `BackToGridLink` so it falls back to navigating directly to the homepage when there's no in-app browser history to go back to (e.g. a clip link opened directly, with no prior visit to the site in that tab) — previously `router.back()` would silently do nothing in that case.
+
+## What was done
+In [components/BackToGridLink.jsx](components/BackToGridLink.jsx), replaced the inline `onClick={() => router.back()}` with a `handleBack` function: it reads `window.history.state?.idx` (the position index Next.js's App Router tracks in history state) and calls `router.back()` only when that index exists and is greater than `0` — i.e., there's an actual in-app entry behind the current one. Otherwise it calls `router.push("/")` to send the user to the homepage directly. No other logic in this file, or anything in `ClipSwipeNav.jsx`, was touched.
+
+## Verification
+`npm run build` passed cleanly — all 18 routes generated, no errors.
+
+## Bottom line
+The "back" button on the clip detail page no longer silently fails for a direct/external link with no prior in-app history — it now falls back to navigating straight to the homepage grid in that case, while still using normal `router.back()` (and, per RECAP 12, landing directly on the grid regardless of swipe depth) whenever real in-app history exists. Build verified green; changes committed and pushed to `main` (commit `40c8868`).
