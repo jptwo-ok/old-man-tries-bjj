@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useLayoutEffect } from "react";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import VotePanel from "@/components/VotePanel";
@@ -20,6 +20,15 @@ const gradeColor = {
 };
 
 const GRADE_ORDER = ["UP", "DOWN"];
+
+// useLayoutEffect warns when it runs during SSR (App Router still
+// server-renders "use client" components for the initial HTML). Falls back
+// to useEffect there — harmless, since isExpanded is always false on the
+// server anyway. On the client this fires synchronously right after the
+// newly-expanded tile's <video> mounts, before paint, which is as close as
+// React lets us get to the original tap/swipe gesture for autoplay-with-
+// sound permission purposes.
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 function sortClipsForDisplay(clipsToSort, voteCounts, unratedPosition) {
   const rated = [];
@@ -358,6 +367,13 @@ function ClipTile({ clip, clipList, counts, unrated, thumb, isNewClip, isFeature
   const longPressFired = useRef(false);
   const movedRef = useRef(false);
   const touchStartPos = useRef({ x: 0, y: 0 });
+  // Set briefly right after exiting native fullscreen — some browsers pass
+  // a stray click/tap through to whatever's underneath the fullscreen-exit
+  // control once it closes, which would otherwise land on this tile's own
+  // tap-to-collapse handler. Auto-clears itself shortly after in case this
+  // particular exit path/browser never actually produces that stray tap
+  // (e.g. desktop Escape key), so a real subsequent tap is never swallowed.
+  const ignoreNextTapRef = useRef(false);
 
   // Preview timing for hover / tap-preview analytics
   const previewStartRef = useRef(null);
@@ -376,8 +392,15 @@ function ClipTile({ clip, clipList, counts, unrated, thumb, isNewClip, isFeature
   // top of the autoPlay attribute (which works on some browsers) we also
   // explicitly call play() here. If that call rejects (blocked unmuted
   // autoplay), fall back to a muted autoplay so the clip at least plays,
-  // and surface a small tap-to-unmute affordance.
-  useEffect(() => {
+  // and surface a small tap-to-unmute affordance. Runs identically whether
+  // this tile became expanded via tap or via swipe/arrow-key/chevron nav
+  // from an adjacent tile — useIsomorphicLayoutEffect (rather than
+  // useEffect) fires this as early as possible after the new tile's video
+  // mounts, since some mobile browsers are stricter about honoring unmuted
+  // autoplay the further removed the play() call is from the original
+  // touch gesture, and a swipe's play() would otherwise land later than a
+  // tap's.
+  useIsomorphicLayoutEffect(() => {
     if (!isExpanded) {
       setNeedsUnmuteTap(false);
       return;
@@ -392,6 +415,43 @@ function ClipTile({ clip, clipList, counts, unrated, thumb, isNewClip, isFeature
         video.play().catch(() => {});
       });
     }
+  }, [isExpanded]);
+
+  // Exiting native fullscreen (handleFullscreen below) should return to this
+  // expanded-in-grid overlay, still playing — not collapse the tile. There's
+  // no code that explicitly collapses on fullscreen exit, so nothing needs
+  // to be skipped there; instead this guards against the stray tap some
+  // browsers dispatch to the page once the native fullscreen-exit control
+  // closes (see ignoreNextTapRef), and resumes playback if the browser
+  // paused the video on the way out of fullscreen.
+  useEffect(() => {
+    if (!isExpanded) return;
+    const video = expandedVideoRef.current;
+    if (!video) return;
+
+    function handleFullscreenExit() {
+      ignoreNextTapRef.current = true;
+      setTimeout(() => {
+        ignoreNextTapRef.current = false;
+      }, 500);
+      if (video.paused) {
+        video.play().catch(() => {});
+      }
+    }
+
+    function handleFullscreenChange() {
+      if (!document.fullscreenElement) handleFullscreenExit();
+    }
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    // iOS Safari's native video fullscreen has no requestFullscreen/
+    // fullscreenchange at all — it fires this instead, only on the element.
+    video.addEventListener("webkitendfullscreen", handleFullscreenExit);
+
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      video.removeEventListener("webkitendfullscreen", handleFullscreenExit);
+    };
   }, [isExpanded]);
 
   // Start/stop preview timing for hover or expanded previews.
@@ -503,11 +563,19 @@ function ClipTile({ clip, clipList, counts, unrated, thumb, isNewClip, isFeature
     // Genuine tap: block the default Link click-navigation and toggle
     // this tile's expanded state instead.
     e.preventDefault();
+    if (ignoreNextTapRef.current) {
+      ignoreNextTapRef.current = false;
+      return;
+    }
     setExpandedId(isExpanded ? null : clip.id);
   }
 
   function handleClick(e) {
     e.preventDefault();
+    if (ignoreNextTapRef.current) {
+      ignoreNextTapRef.current = false;
+      return;
+    }
     setExpandedId(isExpanded ? null : clip.id);
   }
 
