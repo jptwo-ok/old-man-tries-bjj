@@ -336,3 +336,21 @@ Two fixes: (1) the expanded grid tile's "Open clip page" button collapsed the ti
 
 ## Bottom line
 Tapping "Open clip page" on an expanded tile now reliably navigates on touch devices instead of collapsing the tile. The clip detail page's video now has dedicated ±5 second skip buttons beneath the native player, seeking without interrupting playback and clamped to the video's actual duration. Build verified green; changes committed and pushed to `main` (commit `8907e14`).
+
+---
+
+# RECAP 17 — 2026-08-13
+
+## Task
+Make the expanded grid tile's diagonal four-corner-arrows icon actually trigger native video fullscreen on tap, instead of leaving the video in its small inline embedded state. The request specifically excluded the "Open clip page" button as the target icon — but a full audit of every `aria-label` in [components/ClipGrid.jsx](components/ClipGrid.jsx) (Search techniques, Previous clip, Next clip, Open clip page, Tap for sound) turned up no separate "Expand"/"Fullscreen"-labeled icon, and the expanded tile's `<video>` has no `controls` attribute either (unlike the detail page's player), so there was no other fullscreen-shaped control anywhere in this view. Flagged the discrepancy and asked the user how to proceed rather than guessing; they confirmed the corner-arrows icon **is** the "Open clip page" button and to repurpose it directly.
+
+## What was done
+Renamed the button's handler from `handleOpenClipPage` (which called `router.push(`/clip/${clip.id}`)`) to `handleFullscreen`, which instead calls the native fullscreen API on `expandedVideoRef.current` (the same ref already used by `handleUnmuteTap` for the expanded tile's video element) — `requestFullscreen()` first, falling back to `webkitEnterFullscreen()` for iOS Safari (which doesn't support `requestFullscreen` on video elements at all), then `webkitRequestFullscreen()` for older prefixed WebKit. `requestFullscreen()`'s promise is caught and ignored (mirroring this file's existing `video.play().catch(() => {})` pattern) rather than left to reject unhandled. The button itself — its icon, position (`top-3 right-3`), and `bg-black/70` styling — is untouched; only its `aria-label` changed, from "Open clip page" to "Fullscreen video", and its `onClick`/`onTouchEnd` now point at the new handler. No new UI, overlay, or fullscreen-state tracking was added, per the request — this only invokes the fullscreen API each browser already provides.
+
+One accepted consequence, raised during the AskUserQuestion exchange and confirmed by the chosen option: the expanded tile no longer has a dedicated one-tap "go to this clip's own page" control. That path still exists via the tile's existing long-press-to-navigate gesture (`handleTouchStart`'s `longPressTimer` → `router.push`), unrelated to this button and untouched by this change.
+
+## Verification
+`npm run build` passed cleanly — all 18 routes generated, no errors.
+
+## Bottom line
+Tapping the corner-arrows icon on an expanded grid tile now opens the OS's native fullscreen video player immediately, with no intermediate step, via the correct fullscreen API for the current browser. That icon no longer navigates to the clip's own page — reaching it still works via long-press, which was already a separate, pre-existing gesture. Build verified green; changes committed and pushed to `main` (commit `b12fa6a`).
