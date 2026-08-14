@@ -511,10 +511,20 @@ function ClipTile({ clip, clipList, counts, unrated, thumb, isNewClip, isFeature
     setExpandedId(isExpanded ? null : clip.id);
   }
 
-  function handleOpenClipPage(e) {
+  function handleFullscreen(e) {
     e.stopPropagation();
     e.preventDefault();
-    router.push(`/clip/${clip.id}`);
+    const video = expandedVideoRef.current;
+    if (!video) return;
+    if (video.requestFullscreen) {
+      video.requestFullscreen().catch(() => {});
+    } else if (video.webkitEnterFullscreen) {
+      // iOS Safari: video elements don't support requestFullscreen at all.
+      video.webkitEnterFullscreen();
+    } else if (video.webkitRequestFullscreen) {
+      // Older prefixed WebKit.
+      video.webkitRequestFullscreen();
+    }
   }
 
   function handleUnmuteTap(e) {
@@ -679,9 +689,9 @@ function ClipTile({ clip, clipList, counts, unrated, thumb, isNewClip, isFeature
           <button
             type="button"
             onTouchStart={(e) => e.stopPropagation()}
-            onTouchEnd={handleOpenClipPage}
-            onClick={handleOpenClipPage}
-            aria-label="Open clip page"
+            onTouchEnd={handleFullscreen}
+            onClick={handleFullscreen}
+            aria-label="Fullscreen video"
             className="absolute top-3 right-3 z-10 pointer-events-auto rounded-full bg-black/70 p-2 text-chalk hover:bg-black/90"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
