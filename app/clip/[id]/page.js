@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { supabasePublic, supabaseAdmin } from "@/lib/supabase";
 import VotePanel from "@/components/VotePanel";
 import AdminBoostControl from "@/components/AdminBoostControl";
+import ClipVideoPlayer from "@/components/ClipVideoPlayer";
 import BackToGridLink from "@/components/BackToGridLink";
 import ClipSwipeNav from "@/components/ClipSwipeNav";
 import { groupClipsByCategory, sortClipsForCategorySection } from "@/lib/clipSort";
@@ -76,25 +77,13 @@ export default async function ClipPage({ params }) {
           added {new Date(clip.added_at).toLocaleDateString()} · credit: {clip.source_credit}
         </p>
 
-        <div className="mt-4 relative aspect-video bg-line rounded-md overflow-hidden">
-          {clip.video_url ? (
-            <video
-              className="w-full h-full"
-              src={clip.video_url}
-              poster={clip.thumbnail_url || undefined}
-              controls
-              preload="metadata"
-              playsInline
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center font-mono text-sm opacity-50">
-              No video linked yet
-            </div>
-          )}
-          <VotePanel clipId={clip.id} initialCounts={counts} />
-          {isAdmin() && (
-            <AdminBoostControl clipId={clip.id} initialBoost={clip.admin_boost || 0} />
-          )}
+        <div className="mt-4">
+          <ClipVideoPlayer videoUrl={clip.video_url} thumbnailUrl={clip.thumbnail_url}>
+            <VotePanel clipId={clip.id} initialCounts={counts} />
+            {isAdmin() && (
+              <AdminBoostControl clipId={clip.id} initialBoost={clip.admin_boost || 0} />
+            )}
+          </ClipVideoPlayer>
         </div>
       </main>
     </ClipSwipeNav>

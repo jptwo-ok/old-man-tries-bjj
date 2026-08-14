@@ -511,6 +511,12 @@ function ClipTile({ clip, clipList, counts, unrated, thumb, isNewClip, isFeature
     setExpandedId(isExpanded ? null : clip.id);
   }
 
+  function handleOpenClipPage(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    router.push(`/clip/${clip.id}`);
+  }
+
   function handleUnmuteTap(e) {
     e.stopPropagation();
     e.preventDefault();
@@ -673,11 +679,8 @@ function ClipTile({ clip, clipList, counts, unrated, thumb, isNewClip, isFeature
           <button
             type="button"
             onTouchStart={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              router.push(`/clip/${clip.id}`);
-            }}
+            onTouchEnd={handleOpenClipPage}
+            onClick={handleOpenClipPage}
             aria-label="Open clip page"
             className="absolute top-3 right-3 z-10 pointer-events-auto rounded-full bg-black/70 p-2 text-chalk hover:bg-black/90"
           >
