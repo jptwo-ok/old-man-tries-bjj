@@ -317,3 +317,22 @@ In [components/BackToGridLink.jsx](components/BackToGridLink.jsx), replaced the 
 
 ## Bottom line
 The "back" button on the clip detail page no longer silently fails for a direct/external link with no prior in-app history — it now falls back to navigating straight to the homepage grid in that case, while still using normal `router.back()` (and, per RECAP 12, landing directly on the grid regardless of swipe depth) whenever real in-app history exists. Build verified green; changes committed and pushed to `main` (commit `40c8868`).
+
+---
+
+# RECAP 16 — 2026-08-13
+
+## Task
+Two fixes: (1) the expanded grid tile's "Open clip page" button collapsed the tile instead of navigating when tapped on a touch device, because its `touchend` bubbled up to the tile's tap-to-collapse handler. (2) Add custom 5-second skip-back/skip-forward buttons to the clip detail page's video player, alongside (not replacing) the native browser controls.
+
+## What was done
+
+**Fix 1** ([components/ClipGrid.jsx](components/ClipGrid.jsx)): the "Open clip page" button only had `onTouchStart={(e) => e.stopPropagation()}`, with no `onTouchEnd` — so on touch devices the `touchend` event still bubbled to the parent `<Link>`'s `handleTouchEnd`, which falls through to its "genuine tap" branch and toggles `expandedId`, collapsing the tile instead of the button's own `onClick` ever firing. Added a shared `handleOpenClipPage(e)` function (stopPropagation + preventDefault + `router.push`) wired to both `onTouchEnd` and `onClick`, mirroring the exact pattern the nearby "Tap for sound" button (`handleUnmuteTap`) already uses correctly.
+
+**Fix 2** ([components/ClipVideoPlayer.jsx](components/ClipVideoPlayer.jsx), new; [app/clip/[id]/page.js](app/clip/%5Bid%5D/page.js)): the detail page is a server component, so the video block (previously inline `<video controls .../>`) was extracted into a new client component holding a `videoRef` shared between the native player and two new skip buttons rendered in a row below it — `VotePanel`/`AdminBoostControl` are passed through as `children` so the page keeps deciding server-side whether to render the admin control (`isAdmin()` stays a server-side check, not threaded into the client component as a prop). Clicking skip sets `video.currentTime` directly (`Math.min(Math.max(video.currentTime ± 5, 0), duration)`), which seeks without pausing already-playing video — no manual play-state handling needed, since a direct `currentTime` assignment doesn't interrupt HTML5 video playback. `duration` falls back to `Infinity` for the upper clamp if metadata hasn't loaded yet (`Number.isFinite` guard), so an early click before `loadedmetadata` fires only skips forward, never throws. Icons are hand-drawn stroke-based arcs (`stroke="currentColor" strokeWidth="2"`, mirrored for back/forward) matching the SVG conventions used throughout this file and `ClipGrid.jsx`, with a plain "5" label next to each rather than embedded in the SVG, to avoid inline-SVG text-rendering inconsistencies. Native `controls` on the `<video>` itself was left untouched.
+
+## Verification
+`npm run build` passed cleanly — all 18 routes generated, no errors.
+
+## Bottom line
+Tapping "Open clip page" on an expanded tile now reliably navigates on touch devices instead of collapsing the tile. The clip detail page's video now has dedicated ±5 second skip buttons beneath the native player, seeking without interrupting playback and clamped to the video's actual duration. Build verified green; changes committed and pushed to `main` (commit `8907e14`).
