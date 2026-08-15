@@ -193,11 +193,12 @@ export default function ClipGrid({ clips: initialClips, voteCounts: initialVoteC
 
   // Grouped-by-category sections — used for the default (no search) view.
   // Each section is sorted independently with the two-tier keyword sort.
-  // Featured clips are excluded here so they only ever appear once (in the
-  // Featured section above), not duplicated into their category too.
+  // Featured clips are included here too (same clip data rendered again,
+  // no special treatment) so a Featured clip still shows up at its normal
+  // vote-score position in its home category, in addition to the Featured
+  // section above.
   const groupedSections = useMemo(() => {
-    const nonFeatured = searchedClips.filter((clip) => !clip.featured);
-    return groupClipsByCategory(nonFeatured).map((section) => ({
+    return groupClipsByCategory(searchedClips).map((section) => ({
       category: section.category,
       clips: sortClipsForCategorySection(section.clips, sortVoteCounts),
     }));
