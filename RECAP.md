@@ -373,3 +373,24 @@ Two more bugs in the expanded grid tile's video behavior, following up on RECAP 
 
 ## Bottom line
 Exiting native fullscreen now returns to the expanded-in-grid view with playback resumed instead of collapsing the tile, guarded against the stray-click-passthrough some browsers produce on fullscreen exit rather than against a nonexistent explicit collapse handler. The shared autoplay-with-sound effect now fires as early as technically possible after any newly-expanded tile's video mounts — tap or swipe alike — narrowing the gap that made swipe-triggered autoplay more likely to fall back to muted than tap-triggered autoplay. Build verified green; changes committed and pushed to `main` (commit `3fca7cd`).
+
+---
+
+# RECAP 19 — 2026-08-13
+
+## Task
+Reverses course from RECAP 14: (1) a Featured clip should appear in **both** the Featured section and its normal home category section (Standup, Guard Pass, etc.), sorted with no special treatment, rather than only in the Featured section. (2) The admin star indicator should show on the category-section instance too, matching the Featured-section instance. (3) Investigate only — report whether the star toggle is visible to all visitors or admin-only, without changing it.
+
+## What was done
+
+**Part 1** ([components/ClipGrid.jsx](components/ClipGrid.jsx), [app/clip/[id]/page.js](app/clip/%5Bid%5D/page.js)): removed the `searchedClips.filter((clip) => !clip.featured)` exclusion RECAP 14 added to `groupedSections`, so `groupClipsByCategory` once again receives every clip, featured or not — a Featured clip now renders once in the Featured section and again at its normal position in its category section. Confirmed `scoreOf`/`sortClipsForCategorySection` never reference `.featured` at all (only vote counts and `admin_boost`), so removing the filter is sufficient on its own to satisfy "sorted exactly as it would be if it were never featured" — no sort logic needed touching. Extended the same reversal to `getNeighbors` in the clip detail page, which had gotten the identical exclusion in RECAP 14 for consistency with the grid's swipe-neighbor order; reverting both together means a Featured clip's own detail page has working prev/next neighbors again too, undoing that RECAP's accepted trade-off.
+
+**Part 2**: turned out to need no code change. `FeaturedToggle` (the star) is rendered unconditionally on `isAdmin` and reads `clip.featured` directly — its JSX has no dependency on which section (`featuredSection` vs. a category section) called `renderClipTile` for a given clip. Once Part 1 stopped excluding a Featured clip from its category section, that clip's own `ClipTile` instance there renders the exact same `FeaturedToggle` its Featured-section sibling instance already did — confirmed by reading through `renderClipTile`/`ClipTile` before concluding no additional wiring was needed.
+
+**Part 3 (investigation, no change made)**: the star toggle is **admin-only**, not visible to regular visitors. Traced the full chain: `ClipTile` renders `<FeaturedToggle>` only inside `{isAdmin && (...)}` blocks (both the collapsed-tile instance at `top-1 right-1` and the expanded-tile instance at `top-3 left-3`) — `isAdmin` is a prop threaded down from `ClipGrid`'s own `isAdmin` prop, which [app/page.js](app/page.js) sets via `isAdmin={isAdmin()}`, calling the server-side `isAdmin()` from [lib/adminAuth.js](lib/adminAuth.js). That function checks for a signed `omtb_admin` HTTP-only cookie (HMAC-verified against `ADMIN_PASSWORD`) and is evaluated server-side during the page's render — so a visitor without a valid admin session gets `isAdmin={false}` baked into the page itself, and the star never renders in their markup at all (not merely hidden by CSS). There is no separate admin route or client-side toggle involved — it's a single server-side auth check gating this one prop.
+
+## Verification
+`npm run build` passed cleanly — all 18 routes generated, no errors.
+
+## Bottom line
+A Featured clip is once again visible in both its Featured section and its normal category section, sorted identically to any other clip in that section — reverting RECAP 14's exclusion on both the grid and the detail page's swipe order. The admin star indicator now shows in both places too, which required no new code since it was never section-specific to begin with. The star remains strictly admin-only (gated by a server-side signed-cookie check in `lib/adminAuth.js`) — confirmed via investigation only, left unchanged per the request. Build verified green; changes committed and pushed to `main` (commit `eca954d`).
